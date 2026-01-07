@@ -36,7 +36,6 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: "/gavindle"
         run: |
           npm run build
-          npx next export
           touch out/.nojekyll
 
       - name: Upload artifact
