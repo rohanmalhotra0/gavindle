@@ -1,0 +1,31 @@
+export const CUSTOM_SOLUTIONS = ["tomas", "colin", "timmy", "caris", "rohan"] as const;
+export type Solution = typeof CUSTOM_SOLUTIONS[number];
+
+function daysBetweenUTC(start: Date, end: Date): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const startUTC = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const endUTC = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+  return Math.floor((endUTC - startUTC) / msPerDay);
+}
+
+const EPOCH = new Date(Date.UTC(2024, 0, 1)); // 2024-01-01 UTC
+
+export function getDailyIndex(date: Date = new Date()): number {
+  const days = daysBetweenUTC(EPOCH, date);
+  const len = CUSTOM_SOLUTIONS.length;
+  return ((days % len) + len) % len;
+}
+
+export function getDailySolution(date: Date = new Date()): Solution {
+  const index = getDailyIndex(date);
+  return CUSTOM_SOLUTIONS[index];
+}
+
+export function normalizeGuess(input: string): string {
+  return input.toLowerCase().replace(/[^a-z]/g, "").slice(0, 5);
+}
+
+export function isFiveLetters(input: string): boolean {
+  return /^[a-z]{5}$/.test(input);
+}
+
