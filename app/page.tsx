@@ -213,7 +213,6 @@ export default function Page() {
         {(status === "won" || status === "lost") && (
           <div className="actions">
             <button className="btn" onClick={share}>Share</button>
-            <button className="btn secondary" onClick={resetIfNeeded}>Reset Game</button>
           </div>
         )}
       </div>
