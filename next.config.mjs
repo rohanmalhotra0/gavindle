@@ -6,9 +6,8 @@ const nextConfig = {
   output: "export",
   images: { unoptimized: true },
   trailingSlash: true,
-  // Use basePath/assetPrefix only for project pages (username.github.io/repo)
-  basePath: isPages ? repo : undefined,
-  assetPrefix: isPages ? repo : undefined
+  // Use basePath only for project pages (username.github.io/repo)
+  basePath: isPages ? repo : undefined
 };
 
 export default nextConfig;

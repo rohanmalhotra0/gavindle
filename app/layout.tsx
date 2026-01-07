@@ -1,7 +1,6 @@
 export const metadata = {
   title: "Gavindle",
   description: "A Wordle-style daily game for Gavin and friends.",
-  metadataBase: new URL("https://example.com"),
   icons: {
     icon: [
       { url: "/favicon.ico" },

@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import gavin from "@/GavinPhoto.jpeg";
+import gavin from "@/GavinPhoto.png";
 
 type Props = {
   show: boolean;
