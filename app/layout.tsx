@@ -1,7 +1,17 @@
 export const metadata = {
   title: "Gavindle",
   description: "A Wordle-style daily game for Gavin and friends.",
-  metadataBase: new URL("https://example.com")
+  metadataBase: new URL("https://example.com"),
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" }
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }]
+  },
+  manifest: "/site.webmanifest",
+  themeColor: "#1877f2"
 };
 
 import "./globals.css";
