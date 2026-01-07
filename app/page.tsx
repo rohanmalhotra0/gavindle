@@ -187,6 +187,7 @@ export default function Page() {
     }
     const title = `Gavindle ${dayIndex} ${status === "won" ? guesses.length : "X"}/${MAX_GUESSES}`;
     const text = `${title}\n\n${lines.join("\n")}`;
+    const play = "https://gavindle.com";
     try {
       await navigator.clipboard.writeText(text);
       setTempMessage("Result copied to clipboard");
