@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import gavin from "@/GavinPhoto.png";
 
 type Props = {
   show: boolean;
@@ -53,8 +52,10 @@ export default function Celebration(props: Props) {
       <div className="celebration-inner">
         <div className="celebration-photo">
           <Image
-            src={gavin}
+            src={"/gavin.jpg"}
             alt="Gavin celebrates"
+            width={220}
+            height={220}
             style={{ borderRadius: 12, objectFit: "cover" }}
             priority
           />
