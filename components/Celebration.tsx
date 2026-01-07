@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 
 type Props = {
   show: boolean;
@@ -47,17 +46,19 @@ export default function Celebration(props: Props) {
 
   if (!visible) return null;
 
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  const photoSrc = `${basePath}/gavin.jpg`;
+
   return (
     <div className="celebration-overlay" role="dialog" aria-label="Celebration">
       <div className="celebration-inner">
         <div className="celebration-photo">
-          <Image
-            src={"/gavin.jpg"}
+          <img
+            src={photoSrc}
             alt="Gavin celebrates"
             width={220}
             height={220}
             style={{ borderRadius: 12, objectFit: "cover" }}
-            priority
           />
         </div>
         <div className="celebration-text">You got it!</div>
