@@ -47,7 +47,7 @@ export default function Celebration(props: Props) {
   if (!visible) return null;
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  const photoSrc = `$/GavinPhoto.png`;
+  const photoSrc = `$/GavinPhoto.PNG`;
 
   return (
     <div className="celebration-overlay" role="dialog" aria-label="Celebration">
@@ -61,7 +61,7 @@ export default function Celebration(props: Props) {
             style={{ borderRadius: 12, objectFit: "cover" }}
           />
         </div>
-        <div className="celebration-text">You got it!</div>
+        <div className="celebration-text">Gavin is so proud!</div>
       </div>
       {renderConfetti && (
         <div className="confetti" aria-hidden="true">
