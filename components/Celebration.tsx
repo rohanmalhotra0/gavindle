@@ -47,7 +47,7 @@ export default function Celebration(props: Props) {
   if (!visible) return null;
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  const photoSrc = `${basePath}/gavin.jpg`;
+  const photoSrc = `${basePath}/gavin.PNG`;
 
   return (
     <div className="celebration-overlay" role="dialog" aria-label="Celebration">
