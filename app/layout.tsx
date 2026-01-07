@@ -31,7 +31,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         <main className="container">{props.children}</main>
         <footer className="app-footer">
           <div className="app-footer-inner">
-            <span>Made for Gavin, Happy Birthday! We love you! - Rohan, Zach</span>
+            <span>Made for Gavin, Happy Birthday! We love you! - Rohan, Tomas, Zach</span>
           </div>
         </footer>
       </body>
