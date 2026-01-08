@@ -1,4 +1,9 @@
-export const CUSTOM_SOLUTIONS = ["tomas", "colin", "timmy", "caris", "rohan"] as const;
+export const CUSTOM_SOLUTIONS = ["tomas", "colin", "timmy", "carys", "rohan","dixie","abbie","asahi", 
+  "gavin","carts","vapes","beers","chill","funny","ethan","smart","ciggy","ferda","sendy","mikey","happy", "dance","drink","poker","silly"] as const;
+const length = CUSTOM_SOLUTIONS.length;
+print(length);
+
+  // for birthday do happy !!!!
 export type Solution = typeof CUSTOM_SOLUTIONS[number];
 
 function daysBetweenUTC(start: Date, end: Date): number {
@@ -28,4 +33,5 @@ export function normalizeGuess(input: string): string {
 export function isFiveLetters(input: string): boolean {
   return /^[a-z]{5}$/.test(input);
 }
+
 
