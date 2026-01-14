@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
-const repo = process.env.NEXT_PUBLIC_BASE_PATH || "/gavindle";
+// If NEXT_PUBLIC_BASE_PATH is set (e.g., "/gavindle"), use it for project pages.
+// Otherwise leave empty so custom domains deploy at root without a basePath.
+const repo = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const isPages = process.env.GITHUB_PAGES === "true";
 const nextConfig = {
   reactStrictMode: true,
