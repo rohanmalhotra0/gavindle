@@ -33,7 +33,7 @@ jobs:
       - name: Build and Export
         env:
           GITHUB_PAGES: "true"
-          NEXT_PUBLIC_BASE_PATH: "/gavindle"
+          NEXT_PUBLIC_BASE_PATH: ""
         run: |
           npm run build
           touch out/.nojekyll

@@ -7,7 +7,7 @@ const nextConfig = {
   images: { unoptimized: true },
   trailingSlash: true,
   // Use basePath only for project pages (username.github.io/repo)
-  basePath: isPages ? repo : undefined
+  basePath: isPages && repo ? repo : undefined
 };
 
 export default nextConfig;
