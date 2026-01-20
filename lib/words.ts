@@ -1,5 +1,5 @@
 export const CUSTOM_SOLUTIONS = ["tomas", "colin", "timmy", "carys", "rohan","dixie","abbie","asahi", 
-  "gavin","carts","beers","ethan","smart","mikey","dance","drink","poker","lacyy",]as const;
+  "gavin","carts","beers","ethan","smart","mikey","dance","drink","poker","lacyy","aidan","zachs","zsliz"]as const;
 const length = CUSTOM_SOLUTIONS.length;
 console.log(length);
 
