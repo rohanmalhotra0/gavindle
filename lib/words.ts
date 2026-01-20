@@ -15,6 +15,11 @@ function daysBetweenUTC(start: Date, end: Date): number {
 
 const EPOCH = new Date(Date.UTC(2024, 0, 1)); // 2024-01-01 UTC
 
+// Specific date overrides (UTC), format YYYY-MM-DD
+const DATE_OVERRIDES: Record<string, Solution> = {
+  "2026-02-02": "tomas"
+};
+
 export function getDailyIndex(date: Date = new Date()): number {
   const days = daysBetweenUTC(EPOCH, date);
   const len = CUSTOM_SOLUTIONS.length;
@@ -22,6 +27,10 @@ export function getDailyIndex(date: Date = new Date()): number {
 }
 
 export function getDailySolution(date: Date = new Date()): Solution {
+  const overrideKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+  if (DATE_OVERRIDES[overrideKey]) {
+    return DATE_OVERRIDES[overrideKey];
+  }
   const index = getDailyIndex(date);
   return CUSTOM_SOLUTIONS[index];
 }
