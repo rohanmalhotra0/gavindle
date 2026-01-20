@@ -119,6 +119,7 @@ html, body {
 .keyboard {
   display: grid;
   gap: 6px;
+  width: 100%;
 }
 .kb-row {
   display: grid;
@@ -273,6 +274,19 @@ html, body {
     width: 48px;
     height: 48px;
     font-size: 20px;
+  }
+  .keyboard {
+    gap: 4px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .kb-row {
+    gap: 4px;
+  }
+  .key {
+    padding: 10px 6px;
+    min-width: 30px;
+    font-size: 14px;
+    border-radius: 5px;
   }
 }
 
