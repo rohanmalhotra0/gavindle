@@ -1,6 +1,9 @@
 export const CUSTOM_SOLUTIONS = ["tomas", "colin", "timmy", "carys", "rohan","dixie","abbie","asahi", 
   "gavin","carts","beers","ethan","smart","mikey","dance","drink","poker","lacyy","aidan","zachs","zsliz","abbys",
-  "conor","vinki","gavvy","gmans","nadia","meera","hispa","pools","drugs","dwyer","phebe","drunk","funny",""]as const;
+  "conor","vinki","gavvy","gmans","nadia","meera","hispa","pools","drugs","dwyer","phebe","drunk","funny","udayy",
+  "naomi","saraa","mayor","verny","money","vodka","zynss","goats","pivot","condo","jerzy","pizza","slice",
+  "stock","degen","trade","gambl","value","drive","fresh","dance","excel","feast"]as const;
+
 const length = CUSTOM_SOLUTIONS.length;
 console.log(length);
 
