@@ -3,12 +3,14 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Grid, { type RowData } from "@/components/Grid";
 import Keyboard from "@/components/Keyboard";
 import Celebration from "@/components/Celebration";
+import LeaderboardModal from "@/components/LeaderboardModal";
 import { getDailyIndex, getDailySolution, isFiveLetters, normalizeGuess } from "@/lib/words";
 import { evaluateGuess, mergeKeyStates, type LetterState } from "@/lib/evaluateGuess";
 import { getDateKey, loadGame, loadStats, saveGame, saveStats, type Stats } from "@/lib/storage";
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
+const LEADERBOARD_SUBMITTED_KEY = "gavindle:leaderboard:submittedDateKey";
 
 type GameStatus = "ongoing" | "won" | "lost";
 
@@ -25,6 +27,7 @@ export default function Page() {
   const [message, setMessage] = useState<string>("");
   const [status, setStatus] = useState<GameStatus>("ongoing");
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
   const [stats, setStats] = useState<Stats>({
     gamesPlayed: 0,
     wins: 0,
@@ -78,6 +81,19 @@ export default function Page() {
   useEffect(() => {
     saveGame({ dateKey, solution, guesses, status });
   }, [dateKey, solution, guesses, status]);
+
+  // Auto-open leaderboard after game ends (once per day).
+  useEffect(() => {
+    if (!mounted) return;
+    if (status !== "won" && status !== "lost") return;
+    try {
+      const already = window.localStorage.getItem(LEADERBOARD_SUBMITTED_KEY);
+      if (already === dateKey) return;
+    } catch {
+      // ignore
+    }
+    setLeaderboardOpen(true);
+  }, [status, mounted, dateKey]);
 
   const setTempMessage = useCallback((m: string) => {
     setMessage(m);
@@ -143,6 +159,16 @@ export default function Page() {
   // Physical keyboard
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (leaderboardOpen) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          (target as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
       if (e.key === "Enter") {
         e.preventDefault();
         onSubmit();
@@ -161,7 +187,7 @@ export default function Page() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onType, onBackspace, onSubmit]);
+  }, [onType, onBackspace, onSubmit, leaderboardOpen]);
 
   const onKey = useCallback(
     (label: string) => {
@@ -201,6 +227,9 @@ export default function Page() {
     window.location.reload();
   }, []);
 
+  const leaderboardResult = status === "won" ? "win" : "loss";
+  const leaderboardGuesses = status === "won" ? guesses.length : null;
+
   return (
     <div className="game">
       <div className="hud">
@@ -213,6 +242,7 @@ export default function Page() {
         {(status === "won" || status === "lost") && (
           <div className="actions">
             <button className="btn" onClick={share}>Share</button>
+            <button className="btn secondary" onClick={() => setLeaderboardOpen(true)}>Leaderboard</button>
           </div>
         )}
       </div>
@@ -222,6 +252,19 @@ export default function Page() {
       {status === "ongoing" && <Keyboard onKey={onKey} keyStates={keyStates} />}
 
       <Celebration show={showCelebration} onHide={() => setShowCelebration(false)} />
+      <LeaderboardModal
+        open={leaderboardOpen && (status === "won" || status === "lost")}
+        onClose={() => setLeaderboardOpen(false)}
+        onSubmitted={() => {
+          try {
+            window.localStorage.setItem(LEADERBOARD_SUBMITTED_KEY, dateKey);
+          } catch {
+            // ignore
+          }
+        }}
+        result={leaderboardResult}
+        guesses={leaderboardGuesses}
+      />
 
       <section aria-label="Stats">
         <div style={{ textAlign: "center", marginTop: 16 }}>

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "updatedAt": "2026-02-23T01:21:49.541Z",
+  "players": {
+    "bob": {
+      "key": "bob",
+      "displayName": "Bob",
+      "gamesPlayed": 1,
+      "wins": 1,
+      "losses": 0,
+      "winPercentage": 100,
+      "bestGuesses": 2,
+      "totalGuessesInWins": 2,
+      "avgGuessesOnWins": 2,
+      "currentStreak": 1,
+      "bestStreak": 1,
+      "lastPlayedAt": "2026-02-23T01:21:49.541Z"
+    }
+  }
+}
