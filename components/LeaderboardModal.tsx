@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  LEADERBOARD_SUBMITTED_DATE_KEY,
   loadLeaderboard,
   saveLeaderboard,
   sortPlayersForLeaderboard,
@@ -23,12 +24,14 @@ export default function LeaderboardModal(props: {
   open: boolean;
   onClose: () => void;
   onSubmitted?: () => void;
+  dateKey: string;
   result: GameResult;
   guesses: number | null;
 }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [players, setPlayers] = useState<PlayerRecord[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -36,17 +39,28 @@ export default function LeaderboardModal(props: {
     if (!props.open) return;
     setError("");
     setSaving(false);
+    setSubmitted(false);
     const lb = loadLeaderboard();
     const list = sortPlayersForLeaderboard(Object.values(lb.players || {}));
     setPlayers([...list]);
+    try {
+      const already = window.localStorage.getItem(LEADERBOARD_SUBMITTED_DATE_KEY);
+      if (already === props.dateKey) {
+        setSubmitted(true);
+        return;
+      }
+    } catch {
+      // ignore
+    }
     window.setTimeout(() => inputRef.current?.focus(), 0);
-  }, [props.open]);
+  }, [props.open, props.dateKey]);
 
   const canSubmit = useMemo(() => {
-    return Boolean(name.trim()) && !saving;
-  }, [name, saving]);
+    return Boolean(name.trim()) && !saving && !submitted;
+  }, [name, saving, submitted]);
 
   const onSubmit = async () => {
+    if (submitted) return;
     try {
       setError("");
       setSaving(true);
@@ -59,6 +73,12 @@ export default function LeaderboardModal(props: {
       saveLeaderboard(next);
       const list = sortPlayersForLeaderboard(Object.values(next.players || {}));
       setPlayers([...list]);
+      setSubmitted(true);
+      try {
+        window.localStorage.setItem(LEADERBOARD_SUBMITTED_DATE_KEY, props.dateKey);
+      } catch {
+        // ignore
+      }
       props.onSubmitted?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save leaderboard.");
@@ -93,12 +113,14 @@ export default function LeaderboardModal(props: {
               placeholder="e.g. Rohan"
               maxLength={40}
               autoComplete="nickname"
+              disabled={submitted}
             />
             <button className="btn" onClick={onSubmit} disabled={!canSubmit} type="button">
-              {saving ? "Saving..." : "Submit"}
+              {submitted ? "Submitted" : saving ? "Saving..." : "Submit"}
             </button>
           </div>
 
+          {submitted && <div style={{ color: "#687387", fontWeight: 700 }}>Already submitted for today.</div>}
           {error && <div className="modal-error">{error}</div>}
 
           <div className="table-wrap" aria-label="Leaderboard table">

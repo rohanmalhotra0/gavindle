@@ -7,10 +7,10 @@ import LeaderboardModal from "@/components/LeaderboardModal";
 import { getDailyIndex, getDailySolution, isFiveLetters, normalizeGuess } from "@/lib/words";
 import { evaluateGuess, mergeKeyStates, type LetterState } from "@/lib/evaluateGuess";
 import { getDateKey, loadGame, loadStats, saveGame, saveStats, type Stats } from "@/lib/storage";
+import { LEADERBOARD_SUBMITTED_DATE_KEY } from "@/lib/leaderboardClient";
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
-const LEADERBOARD_SUBMITTED_KEY = "gavindle:leaderboard:submittedDateKey";
 
 type GameStatus = "ongoing" | "won" | "lost";
 
@@ -87,7 +87,7 @@ export default function Page() {
     if (!mounted) return;
     if (status !== "won" && status !== "lost") return;
     try {
-      const already = window.localStorage.getItem(LEADERBOARD_SUBMITTED_KEY);
+      const already = window.localStorage.getItem(LEADERBOARD_SUBMITTED_DATE_KEY);
       if (already === dateKey) return;
     } catch {
       // ignore
@@ -257,11 +257,12 @@ export default function Page() {
         onClose={() => setLeaderboardOpen(false)}
         onSubmitted={() => {
           try {
-            window.localStorage.setItem(LEADERBOARD_SUBMITTED_KEY, dateKey);
+            window.localStorage.setItem(LEADERBOARD_SUBMITTED_DATE_KEY, dateKey);
           } catch {
             // ignore
           }
         }}
+        dateKey={dateKey}
         result={leaderboardResult}
         guesses={leaderboardGuesses}
       />

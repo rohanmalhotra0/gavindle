@@ -23,6 +23,7 @@ export type LeaderboardFile = {
 
 const LEADERBOARD_KEY = "gavindle:leaderboard";
 const CORRUPT_PREFIX = "gavindle:leaderboard:corrupt:";
+export const LEADERBOARD_SUBMITTED_DATE_KEY = "gavindle:leaderboard:submittedDateKey";
 
 export function normalizeName(name: string): string {
   return String(name).trim().toLowerCase().replace(/\s+/g, " ");
