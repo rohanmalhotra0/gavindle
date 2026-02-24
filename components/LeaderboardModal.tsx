@@ -1,13 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   LEADERBOARD_SUBMITTED_DATE_KEY,
-  loadLeaderboard,
-  saveLeaderboard,
-  sortPlayersForLeaderboard,
-  upsertPlayerResult,
   type GameResult,
   type PlayerRecord
 } from "@/lib/leaderboardClient";
+import { fetchLeaderboard, leaderboardRows, submitResult } from "@/lib/leaderboardService";
 
 function formatPercent(n: number) {
   if (!Number.isFinite(n)) return "";
@@ -40,9 +37,9 @@ export default function LeaderboardModal(props: {
     setError("");
     setSaving(false);
     setSubmitted(false);
-    const lb = loadLeaderboard();
-    const list = sortPlayersForLeaderboard(Object.values(lb.players || {}));
-    setPlayers([...list]);
+    fetchLeaderboard()
+      .then((lb) => setPlayers([...leaderboardRows(lb)]))
+      .catch(() => setPlayers([]));
     try {
       const already = window.localStorage.getItem(LEADERBOARD_SUBMITTED_DATE_KEY);
       if (already === props.dateKey) {
@@ -64,15 +61,13 @@ export default function LeaderboardModal(props: {
     try {
       setError("");
       setSaving(true);
-      const lb = loadLeaderboard();
-      const next = upsertPlayerResult(lb, {
+      const next = await submitResult({
+        dateKey: props.dateKey,
         name,
         result: props.result,
-        guesses: props.result === "win" ? props.guesses : props.guesses ?? null
+        guesses: props.guesses
       });
-      saveLeaderboard(next);
-      const list = sortPlayersForLeaderboard(Object.values(next.players || {}));
-      setPlayers([...list]);
+      setPlayers([...leaderboardRows(next)]);
       setSubmitted(true);
       try {
         window.localStorage.setItem(LEADERBOARD_SUBMITTED_DATE_KEY, props.dateKey);
