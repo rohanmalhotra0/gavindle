@@ -1,0 +1,12 @@
+{
+  "name": "Gavindle",
+  "short_name": "Gavindle",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1877f2",
+  "icons": [
+    { "src": "/GavinPhoto.PNG", "type": "image/png" }
+  ]
+}
+
