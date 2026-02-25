@@ -370,6 +370,22 @@ html, body {
   white-space: normal;
 }
 
+/* Leaderboard at top (compact) */
+.leaderboard-top {
+  width: 100%;
+  margin-bottom: 16px;
+}
+.leaderboard-top .table-wrap {
+  max-height: 180px;
+}
+.leaderboard-top .table {
+  font-size: 12px;
+}
+.leaderboard-top .table th,
+.leaderboard-top .table td {
+  padding: 6px 8px;
+}
+
 @media (max-width: 480px) {
   .tile {
     width: 48px;

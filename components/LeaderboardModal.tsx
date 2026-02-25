@@ -1,21 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  LEADERBOARD_SUBMITTED_DATE_KEY,
-  type GameResult,
-  type PlayerRecord
-} from "@/lib/leaderboardClient";
-import { fetchLeaderboard, leaderboardRows, submitResult } from "@/lib/leaderboardService";
-
-function formatPercent(n: number) {
-  if (!Number.isFinite(n)) return "";
-  return `${n.toFixed(1)}%`;
-}
-
-function formatAvg(n: number | null) {
-  if (n == null) return "";
-  if (!Number.isFinite(n)) return "";
-  return n.toFixed(2);
-}
+import { LEADERBOARD_SUBMITTED_DATE_KEY, type GameResult } from "@/lib/leaderboardClient";
+import { submitResult } from "@/lib/leaderboardService";
 
 export default function LeaderboardModal(props: {
   open: boolean;
@@ -29,7 +14,6 @@ export default function LeaderboardModal(props: {
   const [error, setError] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [players, setPlayers] = useState<PlayerRecord[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -37,9 +21,6 @@ export default function LeaderboardModal(props: {
     setError("");
     setSaving(false);
     setSubmitted(false);
-    fetchLeaderboard()
-      .then((lb) => setPlayers([...leaderboardRows(lb)]))
-      .catch(() => setPlayers([]));
     try {
       const already = window.localStorage.getItem(LEADERBOARD_SUBMITTED_DATE_KEY);
       if (already === props.dateKey) {
@@ -61,13 +42,12 @@ export default function LeaderboardModal(props: {
     try {
       setError("");
       setSaving(true);
-      const next = await submitResult({
+      await submitResult({
         dateKey: props.dateKey,
         name,
         result: props.result,
         guesses: props.guesses
       });
-      setPlayers([...leaderboardRows(next)]);
       setSubmitted(true);
       try {
         window.localStorage.setItem(LEADERBOARD_SUBMITTED_DATE_KEY, props.dateKey);
@@ -85,16 +65,19 @@ export default function LeaderboardModal(props: {
   if (!props.open) return null;
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Leaderboard">
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Submit to leaderboard">
       <div className="modal">
         <div className="modal-header">
-          <div className="modal-title">Leaderboard</div>
+          <div className="modal-title">Submit to leaderboard</div>
           <button className="btn secondary" onClick={props.onClose} type="button">
             Close
           </button>
         </div>
 
         <div className="modal-body">
+          <p style={{ margin: "0 0 12px", color: "#687387" }}>
+            Enter your name to add your result to the leaderboard.
+          </p>
           <div className="modal-row">
             <label className="modal-label" htmlFor="leaderboard-name">
               Display name
@@ -117,51 +100,6 @@ export default function LeaderboardModal(props: {
 
           {submitted && <div style={{ color: "#687387", fontWeight: 700 }}>Already submitted for today.</div>}
           {error && <div className="modal-error">{error}</div>}
-
-          <div className="table-wrap" aria-label="Leaderboard table">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Player</th>
-                  <th>Win %</th>
-                  <th>Played</th>
-                  <th>Wins</th>
-                  <th>Losses</th>
-                  <th>Best</th>
-                  <th>Avg (wins)</th>
-                  <th>Streak</th>
-                  <th>Last played</th>
-                </tr>
-              </thead>
-              <tbody>
-                {players.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="table-empty">
-                      No entries yet — submit your result.
-                    </td>
-                  </tr>
-                ) : (
-                  players.map((p, idx) => (
-                    <tr key={p.key}>
-                      <td>{idx + 1}</td>
-                      <td>{p.displayName}</td>
-                      <td>{formatPercent(p.winPercentage)}</td>
-                      <td>{p.gamesPlayed}</td>
-                      <td>{p.wins}</td>
-                      <td>{p.losses}</td>
-                      <td>{p.bestGuesses ?? ""}</td>
-                      <td>{formatAvg(p.avgGuessesOnWins)}</td>
-                      <td>
-                        {p.currentStreak}/{p.bestStreak}
-                      </td>
-                      <td>{p.lastPlayedAt ? p.lastPlayedAt.slice(0, 10) : ""}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
     </div>

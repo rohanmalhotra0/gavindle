@@ -4,13 +4,36 @@ import Grid, { type RowData } from "@/components/Grid";
 import Keyboard from "@/components/Keyboard";
 import Celebration from "@/components/Celebration";
 import LeaderboardModal from "@/components/LeaderboardModal";
+import LeaderboardTable from "@/components/LeaderboardTable";
 import { getDailyIndex, getDailySolution, isFiveLetters, normalizeGuess } from "@/lib/words";
 import { evaluateGuess, mergeKeyStates, type LetterState } from "@/lib/evaluateGuess";
 import { getDateKey, loadGame, loadStats, saveGame, saveStats, type Stats } from "@/lib/storage";
-import { LEADERBOARD_SUBMITTED_DATE_KEY } from "@/lib/leaderboardClient";
+import { LEADERBOARD_SUBMITTED_DATE_KEY, type PlayerRecord } from "@/lib/leaderboardClient";
+import { fetchLeaderboard, leaderboardRows } from "@/lib/leaderboardService";
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
+
+const ROHAN_QUOTES = [
+  "Gavindle doesn't reward hope. It rewards process.",
+  "Confidence is built in practice, not in guess three.",
+  "If you want green, earn it.",
+  "Lock in. Then let the tiles speak.",
+  "You don't need luck. You need a plan.",
+  "Every guess should do a job.",
+  "Guessing random is donating attempts.",
+  "Play calm. Play sharp.",
+  "Execution beats emotion every time.",
+  "Speed is cool. Precision is deadly.",
+  "Your streak is your discipline in public.",
+  "Today's puzzle is a mirror.",
+  "No tilt. Just tactics.",
+  "A great solve is just good habits stacked.",
+  "You can't bluff the board.",
+  "Intentional guesses win games.",
+  "Don't chase the answer. Box it in.",
+  "Control the letters. Control the outcome."
+];
 
 type GameStatus = "ongoing" | "won" | "lost";
 
@@ -28,6 +51,7 @@ export default function Page() {
   const [status, setStatus] = useState<GameStatus>("ongoing");
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
+  const [leaderboardVisible, setLeaderboardVisible] = useState<boolean>(false);
   const [stats, setStats] = useState<Stats>({
     gamesPlayed: 0,
     wins: 0,
@@ -36,11 +60,19 @@ export default function Page() {
     guessDistribution: [0, 0, 0, 0, 0, 0]
   });
   const [mounted, setMounted] = useState<boolean>(false);
+  const [leaderboardPlayers, setLeaderboardPlayers] = useState<PlayerRecord[]>([]);
 
   // Load stats after mount to avoid SSR/client mismatch from localStorage
   useEffect(() => {
     setStats(loadStats());
     setMounted(true);
+  }, []);
+
+  // Fetch leaderboard on mount
+  useEffect(() => {
+    fetchLeaderboard()
+      .then((lb) => setLeaderboardPlayers(leaderboardRows(lb)))
+      .catch(() => setLeaderboardPlayers([]));
   }, []);
 
   // Initialize from storage or fresh
@@ -230,6 +262,12 @@ export default function Page() {
   const leaderboardResult = status === "won" ? "win" : "loss";
   const leaderboardGuesses = status === "won" ? guesses.length : null;
 
+  const refreshLeaderboard = useCallback(() => {
+    fetchLeaderboard()
+      .then((lb) => setLeaderboardPlayers(leaderboardRows(lb)))
+      .catch(() => setLeaderboardPlayers([]));
+  }, []);
+
   return (
     <div className="game">
       <div className="hud">
@@ -261,6 +299,7 @@ export default function Page() {
           } catch {
             // ignore
           }
+          refreshLeaderboard();
         }}
         dateKey={dateKey}
         result={leaderboardResult}
@@ -297,6 +336,33 @@ export default function Page() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section aria-label="Leaderboard" style={{ marginTop: 24 }}>
+        <div className="rohan-quote" style={{ textAlign: "center", marginBottom: 12, fontStyle: "italic", color: "#687387", fontSize: 14 }}>
+          Rohan Quote of the day: {ROHAN_QUOTES[dayIndex % ROHAN_QUOTES.length]}
+        </div>
+        <div className="actions" style={{ marginBottom: 8, justifyContent: "center" }}>
+          {leaderboardVisible ? (
+            <button className="btn secondary" onClick={() => setLeaderboardVisible(false)} type="button">
+              Close Leaderboard
+            </button>
+          ) : (
+            <button className="btn secondary" onClick={() => setLeaderboardVisible(true)} type="button">
+              View Leaderboard
+            </button>
+          )}
+        </div>
+        {leaderboardVisible && (
+          <>
+            {leaderboardPlayers.length > 0 && (
+              <div className="leaderboard-goat" style={{ marginBottom: 12, fontWeight: 700, color: "var(--color-meta-blue)" }}>
+                Gavindler #1 Spot the GOAT: {leaderboardPlayers[0].displayName}
+              </div>
+            )}
+            <LeaderboardTable players={leaderboardPlayers} compact />
+          </>
+        )}
       </section>
     </div>
   );
