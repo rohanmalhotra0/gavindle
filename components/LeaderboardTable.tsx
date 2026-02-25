@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import type { PlayerRecord } from "@/lib/leaderboardClient";
 
 function formatPercent(n: number) {
@@ -15,10 +15,15 @@ function formatAvg(n: number | null) {
 export default function LeaderboardTable(props: { players: PlayerRecord[]; compact?: boolean }) {
   const { players, compact } = props;
   const cls = compact ? "leaderboard-top" : "";
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo(0, 0);
+  }, []);
 
   return (
     <section aria-label="Leaderboard" className={cls}>
-      <div className="table-wrap">
+      <div ref={scrollRef} className="table-wrap table-wrap-scroll">
         <table className="table">
           <thead>
             <tr>
