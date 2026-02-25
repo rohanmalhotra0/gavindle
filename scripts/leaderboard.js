@@ -242,11 +242,12 @@ function sortPlayersForLeaderboard(players) {
 
   return players.sort((pa, pb) => {
     if (pb.winPercentage !== pa.winPercentage) return pb.winPercentage - pa.winPercentage;
+    if (pb.gamesPlayed !== pa.gamesPlayed) return pb.gamesPlayed - pa.gamesPlayed;
     const bestCmp = nullsLastAsc(pa.bestGuesses, pb.bestGuesses);
     if (bestCmp !== 0) return bestCmp;
     const avgCmp = nullsLastAsc(pa.avgGuessesOnWins, pb.avgGuessesOnWins);
     if (avgCmp !== 0) return avgCmp;
-    return pb.gamesPlayed - pa.gamesPlayed;
+    return 0;
   });
 }
 
