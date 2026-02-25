@@ -386,9 +386,13 @@ html, body {
   border-radius: 12px;
 }
 .table-wrap-scroll {
-  overflow-x: scroll;
+  overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+.leaderboard-table {
+  width: 100%;
+  min-width: 0;
 }
 .table {
   width: max-content;
@@ -474,11 +478,17 @@ html, body {
     max-height: 260px;
   }
   .leaderboard-top .table {
-    min-width: 720px;
+    min-width: 0;
     font-size: 12px;
   }
   .leaderboard-top .table th,
   .leaderboard-top .table td {
     padding: 8px 6px;
+  }
+  .lb-hide-mobile {
+    display: none !important;
+  }
+  .leaderboard-table {
+    table-layout: fixed;
   }
 }

@@ -24,19 +24,19 @@ export default function LeaderboardTable(props: { players: PlayerRecord[]; compa
   return (
     <section aria-label="Leaderboard" className={cls}>
       <div ref={scrollRef} className="table-wrap table-wrap-scroll">
-        <table className="table">
+        <table className="table leaderboard-table">
           <thead>
             <tr>
               <th>#</th>
               <th>Player</th>
               <th>Win %</th>
-              <th>Played</th>
-              <th>Wins</th>
-              <th>Losses</th>
+              <th className="lb-hide-mobile">Played</th>
+              <th className="lb-hide-mobile">Wins</th>
+              <th className="lb-hide-mobile">Losses</th>
               <th>Best</th>
-              <th>Avg</th>
+              <th className="lb-hide-mobile">Avg</th>
               <th>Streak</th>
-              <th>Last</th>
+              <th className="lb-hide-mobile">Last</th>
             </tr>
           </thead>
           <tbody>
@@ -52,15 +52,15 @@ export default function LeaderboardTable(props: { players: PlayerRecord[]; compa
                   <td>{idx + 1}</td>
                   <td>{p.displayName}</td>
                   <td>{formatPercent(p.winPercentage)}</td>
-                  <td>{p.gamesPlayed}</td>
-                  <td>{p.wins}</td>
-                  <td>{p.losses}</td>
+                  <td className="lb-hide-mobile">{p.gamesPlayed}</td>
+                  <td className="lb-hide-mobile">{p.wins}</td>
+                  <td className="lb-hide-mobile">{p.losses}</td>
                   <td>{p.bestGuesses ?? ""}</td>
-                  <td>{formatAvg(p.avgGuessesOnWins)}</td>
+                  <td className="lb-hide-mobile">{formatAvg(p.avgGuessesOnWins)}</td>
                   <td>
                     {p.currentStreak}/{p.bestStreak}
                   </td>
-                  <td>{p.lastPlayedAt ? p.lastPlayedAt.slice(0, 10) : ""}</td>
+                  <td className="lb-hide-mobile">{p.lastPlayedAt ? p.lastPlayedAt.slice(0, 10) : ""}</td>
                 </tr>
               ))
             )}
