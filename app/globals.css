@@ -496,18 +496,17 @@ html, body {
     text-overflow: ellipsis;
     max-width: 0;
   }
+  /* Visible on mobile: #(1), Player(2), Win%(3), Best(7), Streak(9) */
   .leaderboard-top .table th:nth-child(1),
-  .leaderboard-top .table td:nth-child(1) { width: 8%; }
+  .leaderboard-top .table td:nth-child(1) { width: 10%; }
   .leaderboard-top .table th:nth-child(2),
   .leaderboard-top .table td:nth-child(2) { width: 28%; }
   .leaderboard-top .table th:nth-child(3),
-  .leaderboard-top .table td:nth-child(3) { width: 18%; }
-  .leaderboard-top .table th:nth-child(4),
-  .leaderboard-top .table td:nth-child(4) { width: 12%; }
-  .leaderboard-top .table th:nth-child(5),
-  .leaderboard-top .table td:nth-child(5) { width: 18%; }
-  .leaderboard-top .table th:nth-child(6),
-  .leaderboard-top .table td:nth-child(6) { width: 16%; }
+  .leaderboard-top .table td:nth-child(3) { width: 22%; }
+  .leaderboard-top .table th:nth-child(7),
+  .leaderboard-top .table td:nth-child(7) { width: 18%; }
+  .leaderboard-top .table th:nth-child(9),
+  .leaderboard-top .table td:nth-child(9) { width: 22%; }
   .lb-hide-mobile {
     display: none !important;
   }
