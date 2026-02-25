@@ -10,6 +10,21 @@ import {
 
 const ENDPOINT = (process.env.NEXT_PUBLIC_LEADERBOARD_ENDPOINT || "").replace(/\/+$/, "");
 
+function isLocalHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function resolveEndpoint(): string {
+  if (ENDPOINT) return ENDPOINT;
+
+  // Local dev convenience: auto-use local leaderboard API when the app runs on localhost.
+  if (typeof window !== "undefined" && isLocalHost(window.location.hostname)) {
+    return "http://localhost:8080";
+  }
+
+  return "";
+}
+
 type SubmitInput = {
   dateKey: string;
   name: string;
@@ -27,14 +42,16 @@ async function safeJson<T>(res: Response): Promise<T> {
 }
 
 export async function fetchLeaderboard(): Promise<LeaderboardFile> {
-  if (!ENDPOINT) return loadLeaderboard();
-  const res = await fetch(`${ENDPOINT}/leaderboard`, { method: "GET" });
+  const endpoint = resolveEndpoint();
+  if (!endpoint) return loadLeaderboard();
+  const res = await fetch(`${endpoint}/leaderboard`, { method: "GET" });
   if (!res.ok) throw new Error(`Leaderboard fetch failed (${res.status}).`);
   return safeJson<LeaderboardFile>(res);
 }
 
 export async function submitResult(input: SubmitInput): Promise<LeaderboardFile> {
-  if (!ENDPOINT) {
+  const endpoint = resolveEndpoint();
+  if (!endpoint) {
     const lb = loadLeaderboard();
     const next = upsertPlayerResult(lb, {
       name: input.name,
@@ -45,7 +62,7 @@ export async function submitResult(input: SubmitInput): Promise<LeaderboardFile>
     return next;
   }
 
-  const res = await fetch(`${ENDPOINT}/leaderboard`, {
+  const res = await fetch(`${endpoint}/leaderboard`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input)
@@ -57,4 +74,3 @@ export async function submitResult(input: SubmitInput): Promise<LeaderboardFile>
 export function leaderboardRows(lb: LeaderboardFile): PlayerRecord[] {
   return sortPlayersForLeaderboard(Object.values(lb.players || {}));
 }
-
