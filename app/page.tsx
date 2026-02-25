@@ -270,9 +270,6 @@ export default function Page() {
 
   return (
     <div className="game">
-      <div className="rohan-quote" style={{ textAlign: "center", marginBottom: 16, fontStyle: "italic", color: "#687387", fontSize: 14 }}>
-        Rohan Quote of the day: {ROHAN_QUOTES[dayIndex % ROHAN_QUOTES.length]}
-      </div>
       <div className="hud">
         <div className="message" role="status" aria-live="polite">
           {message || (status === "won" ? "You win Gavin has been notified I am so proud of you!" : status === "lost" ? `The word was ${solution.toUpperCase()} Loser fake friend this result and email has been sent to gavin` : "")}
@@ -342,6 +339,9 @@ export default function Page() {
       </section>
 
       <section aria-label="Leaderboard" style={{ marginTop: 24 }}>
+        <div className="rohan-quote" style={{ textAlign: "center", marginBottom: 12, fontStyle: "italic", color: "#687387", fontSize: 14 }}>
+          Rohan Quote of the day: {ROHAN_QUOTES[dayIndex % ROHAN_QUOTES.length]}
+        </div>
         <div className="actions" style={{ marginBottom: 8, justifyContent: "center" }}>
           {leaderboardVisible ? (
             <button className="btn secondary" onClick={() => setLeaderboardVisible(false)} type="button">
