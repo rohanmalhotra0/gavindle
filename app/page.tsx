@@ -357,7 +357,7 @@ export default function Page() {
           <>
             {leaderboardPlayers.length > 0 && (
               <div className="leaderboard-goat" style={{ marginBottom: 12, fontWeight: 700, color: "var(--color-meta-blue)" }}>
-                Gavindler #1 Spot the GOAT: {leaderboardPlayers[0].displayName}
+                Gavindler #1 GOAT: {leaderboardPlayers[0].displayName}
               </div>
             )}
             <LeaderboardTable players={leaderboardPlayers} compact />
