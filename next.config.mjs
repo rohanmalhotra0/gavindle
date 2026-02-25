@@ -9,7 +9,10 @@ const nextConfig = {
   images: { unoptimized: true },
   trailingSlash: true,
   // Use basePath only for project pages (username.github.io/repo)
-  basePath: isPages && repo ? repo : undefined
+  basePath: isPages && repo ? repo : undefined,
+  // Avoid build hanging when ESLint isn't configured or telemetry is slow
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: false }
 };
 
 export default nextConfig;
