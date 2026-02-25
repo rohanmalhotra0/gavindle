@@ -306,7 +306,7 @@ export default function Page() {
         guesses={leaderboardGuesses}
       />
 
-      <section aria-label="Stats">
+      <section aria-label="Stats" className="stats-section">
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <strong>Stats</strong>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 8 }}>
@@ -338,11 +338,11 @@ export default function Page() {
         </div>
       </section>
 
-      <section aria-label="Leaderboard" style={{ marginTop: 24 }}>
-        <div className="rohan-quote" style={{ textAlign: "center", marginBottom: 12, fontStyle: "italic", color: "#687387", fontSize: 14 }}>
+      <section aria-label="Leaderboard" className="leaderboard-section">
+        <div className="rohan-quote">
           Rohan Quote of the day: {ROHAN_QUOTES[dayIndex % ROHAN_QUOTES.length]}
         </div>
-        <div className="actions" style={{ marginBottom: 8, justifyContent: "center" }}>
+        <div className="actions leaderboard-actions">
           {leaderboardVisible ? (
             <button className="btn secondary" onClick={() => setLeaderboardVisible(false)} type="button">
               Close Leaderboard
@@ -356,7 +356,7 @@ export default function Page() {
         {leaderboardVisible && (
           <>
             {leaderboardPlayers.length > 0 && (
-              <div className="leaderboard-goat" style={{ marginBottom: 12, fontWeight: 700, color: "var(--color-meta-blue)" }}>
+              <div className="leaderboard-goat">
                 Gavindler #1 Spot the GOAT: {leaderboardPlayers[0].displayName}
               </div>
             )}
@@ -367,4 +367,3 @@ export default function Page() {
     </div>
   );
 }
-
