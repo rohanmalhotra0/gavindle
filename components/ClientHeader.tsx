@@ -66,7 +66,7 @@ function StatsModal({ stats, onClose }: { stats: Stats; onClose: () => void }) {
   );
 }
 
-function LeaderboardModal({ players, onClose, loading }: { players: PlayerRecord[]; onClose: () => void; loading?: boolean }) {
+function LeaderboardModal({ players, onClose, loading, error }: { players: PlayerRecord[]; onClose: () => void; loading?: boolean; error?: string | null }) {
   const dayIndex = getDailyIndex(new Date());
   const quote = ROHAN_QUOTES[dayIndex % ROHAN_QUOTES.length];
   const goat = players.length > 0 ? players[0].displayName : null;
@@ -80,14 +80,18 @@ function LeaderboardModal({ players, onClose, loading }: { players: PlayerRecord
         </div>
         {loading ? (
           <div style={{ color: "#687387", textAlign: "center", padding: 20 }}>Loading...</div>
-        ) : goat && (
-          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8, color: "#1a1a1b" }}>
-            Gavindler #1 GOAT: {goat}
-          </div>
-        )}
-        {players.length === 0 ? (
-          <div style={{ color: "#687387", textAlign: "center", padding: 20 }}>No entries yet</div>
+        ) : error ? (
+          <div style={{ color: "#d32f2f", textAlign: "center", padding: 20 }}>{error}</div>
         ) : (
+          <>
+            {goat && (
+              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8, color: "#1a1a1b" }}>
+                Gavindler #1 GOAT: {goat}
+              </div>
+            )}
+            {players.length === 0 ? (
+              <div style={{ color: "#687387", textAlign: "center", padding: 20 }}>No entries yet</div>
+            ) : (
           <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #d3d6da" }}>
@@ -110,6 +114,8 @@ function LeaderboardModal({ players, onClose, loading }: { players: PlayerRecord
               ))}
             </tbody>
           </table>
+            )}
+          </>
         )}
         <div style={{ marginTop: 12, fontStyle: "italic", fontSize: 11, color: "#687387", textAlign: "center" }}>
           Rohan Quote of the day: {quote}
@@ -144,6 +150,7 @@ export default function ClientHeader() {
   const [stats, setStats] = useState<Stats>({ gamesPlayed: 0, wins: 0, currentStreak: 0, maxStreak: 0, guessDistribution: [0,0,0,0,0,0] });
   const [players, setPlayers] = useState<PlayerRecord[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   const loadStats = () => {
     setStats({
@@ -163,13 +170,16 @@ export default function ClientHeader() {
 
   const refreshLeaderboard = () => {
     setLoadingLeaderboard(true);
+    setLeaderboardError(null);
     fetchLeaderboard()
       .then((lb) => {
         setPlayers(leaderboardRows(lb));
+        setLeaderboardError(null);
         setLoadingLeaderboard(false);
       })
-      .catch(() => {
+      .catch((e) => {
         setPlayers([]);
+        setLeaderboardError(e instanceof Error ? e.message : "Failed to load leaderboard");
         setLoadingLeaderboard(false);
       });
   };
@@ -178,6 +188,11 @@ export default function ClientHeader() {
     loadStats();
     refreshLeaderboard();
   }, []);
+
+  const openStats = () => {
+    loadStats();
+    setShowStats(true);
+  };
 
   const openLeaderboard = () => {
     refreshLeaderboard();
@@ -196,7 +211,7 @@ export default function ClientHeader() {
           </div>
           <h1 className="brand">Gavindle</h1>
           <div style={{ display: "flex", gap: 4 }}>
-            <button className="icon-btn" onClick={() => setShowStats(true)} aria-label="Statistics">
+            <button className="icon-btn" onClick={openStats} aria-label="Statistics">
               <StatsIcon />
             </button>
             <button className="icon-btn" onClick={openLeaderboard} aria-label="Leaderboard">
@@ -206,7 +221,7 @@ export default function ClientHeader() {
         </div>
       </header>
       {showStats && <StatsModal stats={stats} onClose={() => setShowStats(false)} />}
-      {showLeaderboard && <LeaderboardModal players={players} onClose={() => setShowLeaderboard(false)} loading={loadingLeaderboard} />}
+      {showLeaderboard && <LeaderboardModal players={players} onClose={() => setShowLeaderboard(false)} loading={loadingLeaderboard} error={leaderboardError} />}
     </>
   );
 }

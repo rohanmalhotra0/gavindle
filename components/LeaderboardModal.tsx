@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { LEADERBOARD_SUBMITTED_DATE_KEY, type GameResult } from "@/lib/leaderboardClient";
+import { LEADERBOARD_SUBMITTED_DATE_KEY, normalizeName, type GameResult } from "@/lib/leaderboardClient";
 import { submitResult, fetchLeaderboard, leaderboardRows } from "@/lib/leaderboardService";
 import type { PlayerRecord } from "@/lib/leaderboardClient";
 import { getDailyIndex } from "@/lib/words";
@@ -110,15 +110,18 @@ export default function LeaderboardModal(props: {
                 </tr>
               </thead>
               <tbody>
-                {players.slice(0, 30).map((p, idx) => (
-                  <tr key={p.key} style={{ borderBottom: "1px solid #f0f0f0", background: p.displayName.toLowerCase() === name.toLowerCase() ? "#e8f5e9" : undefined }}>
+                {players.slice(0, 30).map((p, idx) => {
+                  const isYou = p.key === normalizeName(name);
+                  return (
+                  <tr key={p.key} style={{ borderBottom: "1px solid #f0f0f0", background: isYou ? "#e8f5e9" : undefined }}>
                     <td style={{ padding: 6 }}>{idx + 1}</td>
-                    <td style={{ padding: 6, fontWeight: p.displayName.toLowerCase() === name.toLowerCase() ? 700 : 400 }}>{p.displayName} {p.displayName.toLowerCase() === name.toLowerCase() && "(You)"}</td>
+                    <td style={{ padding: 6, fontWeight: isYou ? 700 : 400 }}>{p.displayName} {isYou && "(You)"}</td>
                     <td style={{ padding: 6 }}>{Math.round(p.winPercentage)}%</td>
                     <td style={{ padding: 6 }}>{p.bestGuesses ?? "-"}</td>
                     <td style={{ padding: 6 }}>{p.currentStreak}/{p.bestStreak}</td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           )}

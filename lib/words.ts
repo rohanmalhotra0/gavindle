@@ -5,9 +5,6 @@ export const CUSTOM_SOLUTIONS = ["tomas", "colin", "timmy", "carys", "rohan","di
   "stock","degen","trade","gambl","value","drive","fresh","dance","excel","feast","lukos","lukas","lucky","chino","corse","uncle",
   "bains","uvaaa","psutf","dance","finan","thors","ippos","anime","sushi","corny"]as const;
 
-const length = CUSTOM_SOLUTIONS.length;
-console.log(length);
-
   // for birthday do happy !!!!
 export type Solution = typeof CUSTOM_SOLUTIONS[number];
 
