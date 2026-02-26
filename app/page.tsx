@@ -4,12 +4,10 @@ import Grid, { type RowData } from "@/components/Grid";
 import Keyboard from "@/components/Keyboard";
 import Celebration from "@/components/Celebration";
 import LeaderboardModal from "@/components/LeaderboardModal";
-import LeaderboardTable from "@/components/LeaderboardTable";
 import { getDailyIndex, getDailySolution, isFiveLetters, normalizeGuess } from "@/lib/words";
 import { evaluateGuess, mergeKeyStates, type LetterState } from "@/lib/evaluateGuess";
 import { getDateKey, loadGame, loadStats, saveGame, saveStats, type Stats } from "@/lib/storage";
-import { LEADERBOARD_SUBMITTED_DATE_KEY, type PlayerRecord } from "@/lib/leaderboardClient";
-import { fetchLeaderboard, leaderboardRows } from "@/lib/leaderboardService";
+import { LEADERBOARD_SUBMITTED_DATE_KEY } from "@/lib/leaderboardClient";
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
@@ -51,7 +49,6 @@ export default function Page() {
   const [status, setStatus] = useState<GameStatus>("ongoing");
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
-  const [leaderboardVisible, setLeaderboardVisible] = useState<boolean>(false);
   const [stats, setStats] = useState<Stats>({
     gamesPlayed: 0,
     wins: 0,
@@ -60,19 +57,11 @@ export default function Page() {
     guessDistribution: [0, 0, 0, 0, 0, 0]
   });
   const [mounted, setMounted] = useState<boolean>(false);
-  const [leaderboardPlayers, setLeaderboardPlayers] = useState<PlayerRecord[]>([]);
 
   // Load stats after mount to avoid SSR/client mismatch from localStorage
   useEffect(() => {
     setStats(loadStats());
     setMounted(true);
-  }, []);
-
-  // Fetch leaderboard on mount
-  useEffect(() => {
-    fetchLeaderboard()
-      .then((lb) => setLeaderboardPlayers(leaderboardRows(lb)))
-      .catch(() => setLeaderboardPlayers([]));
   }, []);
 
   // Initialize from storage or fresh
@@ -264,25 +253,16 @@ export default function Page() {
   const leaderboardResult = status === "won" ? "win" : "loss";
   const leaderboardGuesses = status === "won" ? guesses.length : null;
 
-  const refreshLeaderboard = useCallback(() => {
-    fetchLeaderboard()
-      .then((lb) => setLeaderboardPlayers(leaderboardRows(lb)))
-      .catch(() => setLeaderboardPlayers([]));
-  }, []);
-
   return (
     <div className="game">
       <div className="hud">
-        <div className="message" role="status" aria-live="polite">
-          {message || (status === "won" ? "You win Gavin has been notified I am so proud of you!" : status === "lost" ? `The word was ${solution.toUpperCase()} Loser fake friend this result and email has been sent to gavin` : "")}
-        </div>
-        <div>
-          <small>Day {dayIndex} • {today.toISOString().slice(0, 10)}</small>
+        <div className="message" role="status" aria-live="polite" style={{ textAlign: "center" }}>
+          {message || (status === "won" ? "You win Gavin has been notified I am so proud of you!" : status === "lost" ? <div style={{ textAlign: "center" }}>The Word Was:<br />{solution.toUpperCase()}<br /><br />Gavin is severely disappointed.</div> : "")}
         </div>
         {(status === "won" || status === "lost") && (
           <div className="actions">
             <button className="btn" onClick={share}>Share</button>
-            <button className="btn secondary" onClick={() => setLeaderboardOpen(true)}>Leaderboard</button>
+            <button className="btn secondary" onClick={() => setLeaderboardOpen(true)}>Send to Leaderboard</button>
           </div>
         )}
       </div>
@@ -301,71 +281,11 @@ export default function Page() {
           } catch {
             // ignore
           }
-          refreshLeaderboard();
         }}
         dateKey={dateKey}
         result={leaderboardResult}
         guesses={leaderboardGuesses}
       />
-
-      <section aria-label="Stats">
-        <div style={{ textAlign: "center", marginTop: 16 }}>
-          <strong>Stats</strong>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 8 }}>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>
-                <span suppressHydrationWarning>{mounted ? stats.gamesPlayed : 0}</span>
-              </div>
-              <div>Played</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>
-                <span suppressHydrationWarning>{mounted ? stats.wins : 0}</span>
-              </div>
-              <div>Wins</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>
-                <span suppressHydrationWarning>{mounted ? stats.currentStreak : 0}</span>
-              </div>
-              <div>Streak</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>
-                <span suppressHydrationWarning>{mounted ? stats.maxStreak : 0}</span>
-              </div>
-              <div>Max</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section aria-label="Leaderboard" style={{ marginTop: 24 }}>
-        <div className="rohan-quote" style={{ textAlign: "center", marginBottom: 12, fontStyle: "italic", color: "#687387", fontSize: 14 }}>
-          Rohan Quote of the day: {ROHAN_QUOTES[dayIndex % ROHAN_QUOTES.length]}
-        </div>
-        <div className="actions" style={{ marginBottom: 8, justifyContent: "center" }}>
-          {leaderboardVisible ? (
-            <button className="btn secondary" onClick={() => setLeaderboardVisible(false)} type="button">
-              Close Leaderboard
-            </button>
-          ) : (
-            <button className="btn secondary" onClick={() => setLeaderboardVisible(true)} type="button">
-              View Leaderboard
-            </button>
-          )}
-        </div>
-        {leaderboardVisible && (
-          <>
-            {leaderboardPlayers.length > 0 && (
-              <div className="leaderboard-goat" style={{ marginBottom: 12, fontWeight: 700, color: "var(--color-meta-blue)" }}>
-                Gavindler #1 GOAT: {leaderboardPlayers[0].displayName}
-              </div>
-            )}
-            <LeaderboardTable players={leaderboardPlayers} compact />
-          </>
-        )}
-      </section>
     </div>
   );
 }

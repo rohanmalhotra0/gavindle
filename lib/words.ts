@@ -11,10 +11,26 @@ console.log(length);
   // for birthday do happy !!!!
 export type Solution = typeof CUSTOM_SOLUTIONS[number];
 
-function daysBetweenUTC(start: Date, end: Date): number {
+function getESTDate(date: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  return {
+    year: parseInt(parts.find(p => p.type === "year")?.value ?? "0", 10),
+    month: parseInt(parts.find(p => p.type === "month")?.value ?? "0", 10),
+    day: parseInt(parts.find(p => p.type === "day")?.value ?? "0", 10)
+  };
+}
+
+function daysBetweenEST(start: Date, end: Date): number {
   const msPerDay = 24 * 60 * 60 * 1000;
-  const startUTC = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
-  const endUTC = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+  const startEST = getESTDate(start);
+  const endEST = getESTDate(end);
+  const startUTC = Date.UTC(startEST.year, startEST.month - 1, startEST.day);
+  const endUTC = Date.UTC(endEST.year, endEST.month - 1, endEST.day);
   return Math.floor((endUTC - startUTC) / msPerDay);
 }
 
@@ -26,13 +42,14 @@ const DATE_OVERRIDES: Record<string, Solution> = {
 };
 
 export function getDailyIndex(date: Date = new Date()): number {
-  const days = daysBetweenUTC(EPOCH, date);
+  const days = daysBetweenEST(EPOCH, date);
   const len = CUSTOM_SOLUTIONS.length;
   return ((days % len) + len) % len;
 }
 
 export function getDailySolution(date: Date = new Date()): Solution {
-  const overrideKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+  const est = getESTDate(date);
+  const overrideKey = `${est.year}-${String(est.month).padStart(2, "0")}-${String(est.day).padStart(2, "0")}`;
   if (DATE_OVERRIDES[overrideKey]) {
     return DATE_OVERRIDES[overrideKey];
   }

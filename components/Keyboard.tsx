@@ -6,7 +6,7 @@ import type { LetterState } from "@/lib/evaluateGuess";
 const ROWS = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-  ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "⌫"]
+  ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "BACK"]
 ];
 
 type Props = {
@@ -23,12 +23,14 @@ export default function Keyboard(props: Props) {
           {row.map((label) => {
             const upper = label.toUpperCase();
             const state = keyStates[upper.toLowerCase()];
-            const isAction = label === "ENTER" || label === "⌫";
+            const isAction = label === "ENTER" || label === "BACK";
+            const displayLabel = label === "BACK" ? "⌫" : label;
+            const handlePress = (l: string) => onKey(l === "⌫" ? "BACKSPACE" : l);
             return (
               <Key
                 key={label}
-                label={label}
-                onPress={onKey}
+                label={displayLabel}
+                onPress={handlePress}
                 state={state}
                 action={isAction}
                 wide={label === "ENTER"}

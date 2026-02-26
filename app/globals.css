@@ -1,16 +1,16 @@
 :root {
-  --color-meta-blue: #1877f2;
+  --color-meta-blue: #1a1a1b;
   --color-bg: #ffffff;
   --color-text: #0a0a0a;
-  --color-border: #dcdfe4;
+  --color-border: #d3d6da;
 
-  --tile-border: #dcdfe4;
+  --tile-border: #d3d6da;
   --tile-bg: #ffffff;
   --tile-text: #0a0a0a;
 
-  --key-bg: #eef3ff;
+  --key-bg: #d3d6da;
   --key-text: #0a0a0a;
-  --key-border: #d0dbff;
+  --key-border: #878a8c;
 
   --state-correct: #6aaa64;
   --state-present: #c9b458;
@@ -46,12 +46,13 @@ html, body {
 .app-header-inner {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   height: 64px;
   max-width: 900px;
   margin: 0 auto;
   padding: 0 16px;
   padding-top: env(safe-area-inset-top);
+  position: relative;
 }
 
 .brand {
@@ -61,6 +62,30 @@ html, body {
   letter-spacing: 0.04em;
   color: var(--color-meta-blue);
   text-transform: uppercase;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  color: var(--color-text);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.icon-btn:hover {
+  background: #f0f0f0;
+}
+
+.icon-btn:active {
+  background: #e0e0e0;
 }
 
 .container {
@@ -101,7 +126,7 @@ html, body {
   font-weight: 700;
   text-transform: uppercase;
   user-select: none;
-  border-radius: 6px;
+  border-radius: 0;
   transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
@@ -141,7 +166,7 @@ html, body {
   border: 1px solid var(--key-border);
   color: var(--key-text);
   padding: 12px 8px;
-  border-radius: 6px;
+  border-radius: 0;
   font-weight: 700;
   min-width: 36px;
   text-align: center;
@@ -168,9 +193,10 @@ html, body {
   border-color: var(--state-absent);
 }
 .key.action {
-  background: var(--color-meta-blue);
-  color: white;
-  border-color: var(--color-meta-blue);
+  background: var(--key-bg);
+  color: var(--key-text);
+  border-color: var(--key-border);
+  font-size: 12px;
 }
 
 .hud {
@@ -332,12 +358,12 @@ html, body {
   width: min(920px, 100%);
   max-height: min(80vh, 720px);
   background: white;
-  border-radius: 16px;
   border: 1px solid var(--color-border);
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: 0;
 }
 .modal-header {
   display: flex;
@@ -482,7 +508,7 @@ html, body {
     padding: 14px 8px;
     min-width: 28px;
     font-size: 14px;
-    border-radius: 6px;
+    border-radius: 0;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
@@ -491,9 +517,9 @@ html, body {
   }
   .modal {
     width: 92%;
-    max-width: 400px;
+    max-width: 340px;
     margin: 16px;
-    padding: 20px;
+    padding: 16px;
   }
   .modal-row {
     grid-template-columns: 1fr;
@@ -520,7 +546,6 @@ html, body {
     overflow-x: auto;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    border-radius: 8px;
     border: 1px solid var(--color-border);
   }
   .leaderboard-top .leaderboard-table {
