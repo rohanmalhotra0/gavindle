@@ -146,7 +146,7 @@ export default function LeaderboardModal(props: {
 
         <div style={{ padding: 16 }}>
           <p style={{ margin: "0 0 12px", color: "#687387", fontSize: 13 }}>
-            Enter your name to add your result to the leaderboard.
+            Enter your name for the leaderboard.
           </p>
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Display name</label>

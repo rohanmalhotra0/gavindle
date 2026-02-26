@@ -214,6 +214,15 @@ html, body {
   display: flex;
   gap: 8px;
 }
+.actions .btn {
+  background: #787c7e;
+  border-color: #787c7e;
+}
+.actions .btn.secondary {
+  background: #878a8c;
+  color: white;
+  border-color: #878a8c;
+}
 .stats-section {
   width: 100%;
   min-width: 0;
@@ -255,7 +264,7 @@ html, body {
   color: white;
   border: 1px solid var(--color-meta-blue);
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: 0;
   font-weight: 700;
   cursor: pointer;
 }
