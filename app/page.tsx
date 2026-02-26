@@ -120,6 +120,8 @@ export default function Page() {
     if (status !== "won" && status !== "lost") return;
     try {
       const already = window.localStorage.getItem(LEADERBOARD_SUBMITTED_DATE_KEY);
+      const persisted = loadGame();
+      if (!persisted || persisted.dateKey !== dateKey) return;
       if (already === dateKey) return;
     } catch {
       // ignore
