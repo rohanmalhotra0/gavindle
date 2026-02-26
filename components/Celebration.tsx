@@ -8,7 +8,7 @@ type Props = {
 };
 
 export default function Celebration(props: Props) {
-  const { show, onHide, durationMs = 4000 } = props;
+  const { show, onHide, durationMs = 3000 } = props;
   const [visible, setVisible] = useState<boolean>(false);
   const [renderConfetti, setRenderConfetti] = useState<boolean>(false);
 
