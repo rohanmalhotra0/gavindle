@@ -216,7 +216,7 @@ export default function Page() {
     (label: string) => {
       if (label === "ENTER") {
         onSubmit();
-      } else if (label === "⌫") {
+      } else if (label === "⌫" || label === "BACKSPACE") {
         onBackspace();
       } else {
         onType(label);
