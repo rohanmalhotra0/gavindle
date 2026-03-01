@@ -3,7 +3,7 @@ export const CUSTOM_SOLUTIONS = ["tomas", "colin", "timmy", "carys", "rohan","di
   "conor","vinki","gavvy","gmans","nadia","meera","hispa","pools","drugs","dwyer","phebe","drunk","funny","udayy",
   "naomi","saraa","mayor","verny","money","vodka","zynss","goats","pivot","condo","jerzy","pizza","slice",
   "stock","degen","trade","gambl","value","drive","fresh","dance","excel","feast","lukos","lukas","lucky","chino","corse","uncle",
-  "bains","uvaaa","psutf","dance","finan","thors","ippos","anime","sushi","corny"]as const;
+  "bains","uvaaa","psutf","dance","finan","thors","ippos","anime","sushi","corny","yekta"]as const;
 
   // for birthday do happy !!!!
 export type Solution = typeof CUSTOM_SOLUTIONS[number];
