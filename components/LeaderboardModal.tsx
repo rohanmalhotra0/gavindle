@@ -104,6 +104,7 @@ export default function LeaderboardModal(props: {
                 <tr style={{ borderBottom: "1px solid #d3d6da" }}>
                   <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>#</th>
                   <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Player</th>
+                  <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Played</th>
                   <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Win %</th>
                   <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Best</th>
                   <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Streak</th>
@@ -116,6 +117,7 @@ export default function LeaderboardModal(props: {
                   <tr key={p.key} style={{ borderBottom: "1px solid #f0f0f0", background: isYou ? "#e8f5e9" : undefined }}>
                     <td style={{ padding: 6 }}>{idx + 1}</td>
                     <td style={{ padding: 6, fontWeight: isYou ? 700 : 400 }}>{p.displayName} {isYou && "(You)"}</td>
+                    <td style={{ padding: 6 }}>{p.gamesPlayed}</td>
                     <td style={{ padding: 6 }}>{Math.round(p.winPercentage)}%</td>
                     <td style={{ padding: 6 }}>{p.bestGuesses ?? "-"}</td>
                     <td style={{ padding: 6 }}>{p.currentStreak}/{p.bestStreak}</td>

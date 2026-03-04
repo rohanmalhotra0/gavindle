@@ -97,6 +97,7 @@ function LeaderboardModal({ players, onClose, loading, error }: { players: Playe
               <tr style={{ borderBottom: "1px solid #d3d6da" }}>
                 <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>#</th>
                 <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Player</th>
+                <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Played</th>
                 <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Win %</th>
                 <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Best</th>
                 <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Streak</th>
@@ -107,6 +108,7 @@ function LeaderboardModal({ players, onClose, loading, error }: { players: Playe
                 <tr key={p.key} style={{ borderBottom: "1px solid #f0f0f0" }}>
                   <td style={{ padding: 6 }}>{idx + 1}</td>
                   <td style={{ padding: 6 }}>{p.displayName}</td>
+                  <td style={{ padding: 6 }}>{p.gamesPlayed}</td>
                   <td style={{ padding: 6 }}>{Math.round(p.winPercentage)}%</td>
                   <td style={{ padding: 6 }}>{p.bestGuesses ?? "-"}</td>
                   <td style={{ padding: 6 }}>{p.currentStreak}/{p.bestStreak}</td>
