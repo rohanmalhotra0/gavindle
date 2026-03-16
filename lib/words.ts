@@ -1,9 +1,17 @@
-export const CUSTOM_SOLUTIONS = ["tomas", "colin", "timmy", "carys", "rohan","dixie","abbie","asahi", 
-  "gavin","carts","beers","ethan","smart","mikey","dance","drink","poker","lacyy","aidan","zachs","zsliz","abbys",
-  "conor","vinki","gavvy","gmans","nadia","meera","hispa","pools","drugs","dwyer","phebe","drunk","funny","udayy",
-  "naomi","saraa","mayor","verny","money","vodka","zynss","goats","pivot","condo","jerzy","pizza","slice",
-  "stock","degen","trade","gambl","value","drive","fresh","dance","excel","feast","lukos","lukas","lucky","chino","corse","uncle",
-  "bains","uvaaa","psutf","dance","finan","thors","ippos","anime","sushi","corny","yekta","cunty"]as const;
+export const CUSTOM_SOLUTIONS = [
+  "tomas", "colin", "timmy", "carys", "rohan", "dixie", "abbie", "asahi",
+  "beers", "ethan", "smart", "mikey", "dance", "poker", "zachs", "zsliz",
+  "booze", "siege", "harly", "conor", "vinki", "gavvy", "gmans", "nadia",
+  "meera", "hispa", "pools", "drugs", "dwyer", "phebe", "drunk", "funny",
+  "udayy", "vodka", "zynss", "goats", "pivot", "condo", "jerzy", "pizza",
+  "slice", "sixin", "vroni", "psuva", "flush", "stock", "degen", "trade",
+  "value", "drive", "fresh", "excel", "feast", "lukos", "lucky", "chino",
+  "corse", "uncle", "bains", "uvaaa", "finan", "thors", "ippos", "anime",
+  "sushi", "corny", "cunty", "lukoz", "wahoo", "hokie", "livia", "gavix",
+  "haydn", "hedge", "quant", "sigma", "greek", "cents", "oddsy", "parks",
+  "rally", "froth", "bluff", "stonk", "bread", "waves", "mocha", "clutch",
+  "vibes", "bloom", "skate", "flint", "champ", "brisk", "glide", "crisp"
+] as const;
 
   // for birthday do happy !!!!
 export type Solution = typeof CUSTOM_SOLUTIONS[number];
