@@ -9,7 +9,7 @@ export const CUSTOM_SOLUTIONS = [
   "corse", "uncle", "bains", "uvaaa", "finan", "thors", "ippos", "anime",
   "sushi", "corny", "cunty", "lukoz", "wahoo", "hokie", "livia", "gavix",
   "haydn", "hedge", "quant", "sigma", "greek", "cents", "oddsy", "parks",
-  "rally", "froth", "bluff", "stonk", "bread", "waves", "mocha", "clutch",
+  "rally", "froth", "bluff", "stonk", "bread", "waves", "mocha", "cluth",
   "vibes", "bloom", "skate", "flint", "champ", "brisk", "glide", "crisp",
   "alpha", "basis", "delta", "theta", "gamma", "vegas", "yield", "bulls",
   "bears", "risky", "asset", "price", "chart", "candy", "money", "swaps",
