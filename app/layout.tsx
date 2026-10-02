@@ -5,20 +5,24 @@ export const metadata = {
     icon: [
       { url: "/wordleFavicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/wordleFavicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/wordleFavicon/favicon-512x512.png", sizes: "512x512", type: "image/png" }
+      { url: "/wordleFavicon/android-chrome-512x512.png", sizes: "512x512", type: "image/png" }
     ],
     apple: [{ url: "/wordleFavicon/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
   },
   manifest: "/site.webmanifest"
 };
 
+// Pinch-zoom stays enabled for accessibility; double-tap zoom is prevented by
+// `touch-action: manipulation` in globals.css.
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
-  themeColor: "#ffffff"
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#121213" }
+  ]
 };
 
 import "./globals.css";
@@ -40,6 +44,3 @@ export default function RootLayout(props: { children: React.ReactNode }) {
     </html>
   );
 }
-
-
-
