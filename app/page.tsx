@@ -20,8 +20,6 @@ import {
   type Stats
 } from "@/lib/storage";
 import { getSubmittedDateKey } from "@/lib/leaderboardClient";
-import { getDateKey, loadGame, loadStats, saveGame, saveStats, type Stats } from "@/lib/storage";
-import { LEADERBOARD_SUBMITTED_DATE_KEY } from "@/lib/leaderboardClient";
 import { nativeShare, resultHaptic } from "@/lib/native";
 
 const MAX_GUESSES = 6;
@@ -309,31 +307,9 @@ export default function Page() {
       // Save the result right away so closing the tab mid-animation can't lose it
       saveGame({ dateKey, solution, guesses: newGuesses, status: finalStatus });
       const nextStats = recordResult(loadStats(), dateKey, won, newGuesses.length);
-    if (current === solution) {
-      setStatus("won");
-      setShowCelebration(true);
-      resultHaptic("success");
-      // update stats
-      const nextStats = { ...stats };
-      nextStats.gamesPlayed += 1;
-      nextStats.wins += 1;
-      nextStats.currentStreak += 1;
-      if (nextStats.currentStreak > nextStats.maxStreak) nextStats.maxStreak = nextStats.currentStreak;
-      const tries = newGuesses.length;
-      if (tries >= 1 && tries <= 6) {
-        nextStats.guessDistribution[tries - 1] += 1;
-      }
       setStats(nextStats);
       saveStats(nextStats);
-      setTempMessage("Nice! You got it");
-    } else if (newGuesses.length >= MAX_GUESSES) {
-      setStatus("lost");
-      resultHaptic("error");
-      const nextStats = { ...stats };
-      nextStats.gamesPlayed += 1;
-      nextStats.currentStreak = 0;
-      setStats(nextStats);
-      saveStats(nextStats);
+      resultHaptic(won ? "success" : "error");
     }
 
     const reduced = prefersReducedMotion();
@@ -422,7 +398,8 @@ export default function Page() {
     const title = `Gavindle ${dayIndex} ${status === "won" ? guesses.length : "X"}/${MAX_GUESSES}`;
     const play = "https://gavindle.com";
     const text = `${title}\n\n${lines.join("\n")}\n\n${play}`;
-    // Native share sheet on phones/tablets; clipboard everywhere else
+    // iOS app share sheet first, then web share on phones/tablets, else clipboard
+    if (await nativeShare(text)) return;
     const isTouch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
     if (isTouch && typeof navigator.share === "function") {
       try {
@@ -434,9 +411,6 @@ export default function Page() {
       }
     }
     if (await copyText(text)) {
-    if (await nativeShare(`${text}\n\n${play}`)) return;
-    try {
-      await navigator.clipboard.writeText(text);
       setTempMessage("Result copied to clipboard");
     } else {
       setTempMessage("Copy failed");

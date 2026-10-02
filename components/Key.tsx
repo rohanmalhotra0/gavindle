@@ -43,15 +43,10 @@ export default function Key(props: Props) {
         // Mouse/touch clicks: drop focus so a later Space/Enter on the physical
         // keyboard doesn't re-press this key. Keyboard activation keeps focus.
         if (e.detail > 0) e.currentTarget.blur();
+        tapHaptic();
         onPress(value);
       }}
       aria-label={stateText ? `${name}, ${stateText}` : name}
-      style={{ gridColumn: wide ? "span 2" : undefined }}
-      onClick={() => {
-        tapHaptic();
-        onPress(label);
-      }}
-      aria-label={label}
     >
       {label}
     </button>
