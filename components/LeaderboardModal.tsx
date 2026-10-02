@@ -25,6 +25,8 @@ const ROHAN_QUOTES = [
   "Control the letters. Control the outcome."
 ];
 
+const NAME_KEY = "gavindle:leaderboard:name";
+
 export default function LeaderboardModal(props: {
   open: boolean;
   onClose: () => void;
@@ -46,6 +48,12 @@ export default function LeaderboardModal(props: {
     setSaving(false);
     setShowResults(false);
     setPlayers([]);
+    try {
+      const saved = window.localStorage.getItem(NAME_KEY);
+      if (saved) setName((n) => n || saved);
+    } catch {
+      // ignore
+    }
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }, [props.open]);
 
@@ -66,6 +74,7 @@ export default function LeaderboardModal(props: {
       setShowResults(true);
       try {
         window.localStorage.setItem(LEADERBOARD_SUBMITTED_DATE_KEY, props.dateKey);
+        window.localStorage.setItem(NAME_KEY, name.trim());
       } catch {
         // ignore
       }
@@ -157,6 +166,9 @@ export default function LeaderboardModal(props: {
               style={{ width: "100%", padding: "10px 8px", fontSize: 16, border: "1px solid #d3d6da", borderRadius: 0 }}
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canSubmit) onSubmit();
+              }}
               placeholder="e.g. Rohan"
               maxLength={40}
             />

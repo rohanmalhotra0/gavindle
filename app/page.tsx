@@ -257,7 +257,7 @@ export default function Page() {
     <div className="game">
       <div className="hud">
         <div className="message" role="status" aria-live="polite" style={{ textAlign: "center" }}>
-          {message || (status === "won" ? "You win Gavin has been notified I am so proud of you!" : status === "lost" ? <div style={{ textAlign: "center" }}>The Word Was:<br />{solution.toUpperCase()}<br /><br />Gavin is severely disappointed.</div> : "")}
+          {message || (status === "won" ? "You win! Gavin would be so proud of you!" : status === "lost" ? <div style={{ textAlign: "center" }}>The Word Was:<br />{solution.toUpperCase()}<br /><br />Gavin is severely disappointed.</div> : "")}
         </div>
         {(status === "won" || status === "lost") && (
           <div className="actions">
