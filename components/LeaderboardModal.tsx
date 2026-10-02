@@ -1,19 +1,24 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  GROUP_MAX_LENGTH,
   MAX_NAME_LENGTH,
   cleanName,
   clearSavedName,
+  getSavedGroup,
   getSavedName,
   getSubmittedDateKey,
   markSubmitted,
+  normalizeGroupCode,
   normalizeName,
+  saveGroup,
   saveName,
+  validateGroupCode,
   validateName,
   type GameResult
 } from "@/lib/leaderboardClient";
-import { submitResultOnce } from "@/lib/leaderboardService";
-import { LeaderboardBody, LeaderboardOverlay } from "@/components/LeaderboardView";
+import Modal from "@/components/Modal";
+import { LeaderboardBody } from "@/components/LeaderboardView";
 import { useLeaderboard } from "@/components/useLeaderboard";
 
 type View = "prompt" | "board";
@@ -22,7 +27,8 @@ type View = "prompt" | "board";
  * Post-game leaderboard flow. When opened:
  * - already submitted today: show the leaderboard;
  * - a saved name exists: submit automatically (win or loss) and show the leaderboard;
- * - otherwise: ask for a name first.
+ * - otherwise: ask for a name (and optional class code) first.
+ * After a submission the board shows how the player's rank changed.
  */
 export default function LeaderboardModal(props: {
   open: boolean;
@@ -31,17 +37,21 @@ export default function LeaderboardModal(props: {
   dateKey: string;
   result: GameResult;
   guesses: number | null;
+  /** True when the player used today's hint (costs 1 point). */
+  hintUsed?: boolean;
 }) {
   const { open, dateKey, result, guesses } = props;
+  const hintUsed = Boolean(props.hintUsed);
   const [view, setView] = useState<View>("prompt");
   const [name, setName] = useState("");
+  const [classCode, setClassCode] = useState("");
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [canChangeName, setCanChangeName] = useState(false);
   const board = useLeaderboard();
-  const { run, reload } = board;
+  const { submit, load, reload } = board;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const retryRef = useRef<() => void>(() => {});
 
@@ -51,18 +61,20 @@ export default function LeaderboardModal(props: {
   const submitAs = useCallback(
     async (rawName: string) => {
       const playerName = cleanName(rawName);
+      const group = getSavedGroup();
       setHighlightKey(normalizeName(playerName));
       setCanChangeName(true);
-      const ok = await run(submitResultOnce({ dateKey, name: playerName, result, guesses }));
+      const ok = await submit({ dateKey, name: playerName, result, guesses, hintUsed, groupCode: group }, group);
       if (ok) {
         markSubmitted(dateKey);
         saveName(playerName);
         setNotice(`Saved today${"’"}s ${result === "win" ? "win" : "result"} as ${playerName}.`);
+        retryRef.current = () => void reload();
         onSubmittedRef.current?.();
       }
       return ok;
     },
-    [run, dateKey, result, guesses]
+    [submit, reload, dateKey, result, guesses, hintUsed]
   );
 
   const showBoard = useCallback(() => {
@@ -71,8 +83,8 @@ export default function LeaderboardModal(props: {
     setHighlightKey(saved ? normalizeName(saved) : null);
     setCanChangeName(Boolean(saved));
     retryRef.current = () => void reload();
-    void reload();
-  }, [reload]);
+    void load(getSavedGroup());
+  }, [load, reload]);
 
   useEffect(() => {
     if (!open) return;
@@ -95,7 +107,10 @@ export default function LeaderboardModal(props: {
 
     setView("prompt");
     setName("");
+    setClassCode(getSavedGroup() ?? "");
     window.setTimeout(() => inputRef.current?.focus(), 0);
+    // Only re-run when the modal opens or the day changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, dateKey]);
 
   const onPromptSubmit = async () => {
@@ -106,6 +121,14 @@ export default function LeaderboardModal(props: {
       inputRef.current?.focus();
       return;
     }
+    const code = normalizeGroupCode(classCode);
+    if (code) {
+      const codeErr = validateGroupCode(code);
+      if (codeErr) {
+        setFormError(codeErr);
+        return;
+      }
+    }
     // Never submit the same finished game twice.
     if (getSubmittedDateKey() === dateKey) {
       showBoard();
@@ -113,13 +136,14 @@ export default function LeaderboardModal(props: {
     }
     setFormError("");
     setSaving(true);
+    if (code) saveGroup(code);
     const playerName = cleanName(name);
+    setView("board");
+    retryRef.current = () => void submitAs(playerName);
     const ok = await submitAs(playerName);
     setSaving(false);
-    if (ok) {
-      setView("board");
-      retryRef.current = () => void reload();
-    } else {
+    if (!ok) {
+      setView("prompt");
       setFormError("The leaderboard is having trouble right now. Please try again in a minute.");
     }
   };
@@ -139,62 +163,78 @@ export default function LeaderboardModal(props: {
     }
   };
 
-  if (!open) return null;
+  const trimmedLength = cleanName(name).length;
+  const isBoard = view === "board";
 
-  if (view === "board") {
-    return (
-      <LeaderboardOverlay title="LEADERBOARD" onClose={props.onClose}>
+  return (
+    <Modal
+      open={open}
+      onClose={props.onClose}
+      title={isBoard ? "LEADERBOARD" : "Submit to leaderboard"}
+      size={isBoard ? "md" : "sm"}
+      className={isBoard ? "lbv-panel" : undefined}
+    >
+      {isBoard ? (
         <LeaderboardBody
-          players={board.players}
-          loading={board.loading}
-          error={board.error}
+          board={board}
           onRetry={() => retryRef.current()}
           highlightKey={highlightKey}
           notice={notice}
           onChangeName={canChangeName ? onChangeName : undefined}
         />
-      </LeaderboardOverlay>
-    );
-  }
-
-  const trimmedLength = cleanName(name).length;
-
-  return (
-    <LeaderboardOverlay title="Submit to leaderboard" onClose={props.onClose} narrow>
-      <form
-        className="lbv-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void onPromptSubmit();
-        }}
-      >
-        <p>
-          Enter your name to put today{"’"}s {result === "win" ? "win" : "game"} on the leaderboard. We{"’"}ll
-          remember it on this device so future games are saved automatically.
-        </p>
-        <label className="lbv-label" htmlFor="lbv-name-input">Display name</label>
-        <input
-          id="lbv-name-input"
-          ref={inputRef}
-          className="lbv-input"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            if (formError) setFormError("");
+      ) : (
+        <form
+          className="lbv-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void onPromptSubmit();
           }}
-          placeholder="e.g. Rohan"
-          maxLength={MAX_NAME_LENGTH}
-          autoComplete="nickname"
-          autoCapitalize="words"
-          spellCheck={false}
-          aria-invalid={Boolean(formError)}
-        />
-        <div className="lbv-hint">{trimmedLength}/{MAX_NAME_LENGTH}</div>
-        <button type="submit" className="lbv-btn lbv-btn-block" disabled={saving || trimmedLength === 0}>
-          {saving ? "Saving..." : "Submit"}
-        </button>
-        {formError && <div className="lbv-form-error" role="alert">{formError}</div>}
-      </form>
-    </LeaderboardOverlay>
+        >
+          <p>
+            Enter your name to put today{"’"}s {result === "win" ? "win" : "game"} on the leaderboard. We{"’"}ll
+            remember it on this device so future games are saved automatically.
+          </p>
+          <label className="lbv-label" htmlFor="lbv-name-input">Display name</label>
+          <input
+            id="lbv-name-input"
+            ref={inputRef}
+            className="lbv-input"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (formError) setFormError("");
+            }}
+            placeholder="e.g. Rohan"
+            maxLength={MAX_NAME_LENGTH}
+            autoComplete="nickname"
+            autoCapitalize="words"
+            spellCheck={false}
+            aria-invalid={Boolean(formError)}
+          />
+          <div className="lbv-hint">{trimmedLength}/{MAX_NAME_LENGTH}</div>
+          <label className="lbv-label" htmlFor="lbv-prompt-class">
+            Class code <span className="lbv-optional">(optional)</span>
+          </label>
+          <input
+            id="lbv-prompt-class"
+            className="lbv-input"
+            value={classCode}
+            onChange={(e) => {
+              setClassCode(normalizeGroupCode(e.target.value).slice(0, GROUP_MAX_LENGTH));
+              if (formError) setFormError("");
+            }}
+            placeholder="e.g. 5B"
+            maxLength={GROUP_MAX_LENGTH}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+          />
+          <button type="submit" className="lbv-btn lbv-btn-block" disabled={saving || trimmedLength === 0}>
+            {saving ? "Saving..." : "Submit"}
+          </button>
+          {formError && <div className="lbv-form-error" role="alert">{formError}</div>}
+        </form>
+      )}
+    </Modal>
   );
 }

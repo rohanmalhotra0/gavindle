@@ -1,180 +1,111 @@
 import {
   cleanName,
+  isValidGroupCode,
+  normalizeGroupCode,
   normalizeName,
-  pointsForGame,
   sortPlayersForLeaderboard,
   type GameResult,
   type LeaderboardFile,
   type PlayerRecord
 } from "@/lib/leaderboardClient";
+import { mergeBadgeIds } from "@/lib/badges";
+import { aggregateResults, type ResultRow } from "@/lib/leaderboardStats";
 import { getDateKey } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 
-type SubmitInput = {
+export type SubmitInput = {
   dateKey: string;
   name: string;
   result: GameResult;
   guesses: number | null;
-};
-
-type ResultRow = {
-  date_key: string;
-  player_key: string;
-  display_name: string;
-  result: string;
-  guesses: number | null;
-  created_at: string;
+  hintUsed?: boolean;
+  /** Class/group code to file this game under (null/omitted = no group). */
+  groupCode?: string | null;
 };
 
 const PAGE_SIZE = 1000;
 const OFFLINE_MESSAGE = "The leaderboard is having trouble right now. Please try again in a minute.";
-const DAY_MS = 24 * 60 * 60 * 1000;
+const SELECT_COLUMNS = "date_key, player_key, display_name, result, guesses, created_at, hint_used";
+const SELECT_COLUMNS_LEGACY = "date_key, player_key, display_name, result, guesses, created_at";
 
-type GameRow = { dateKey: string; result: string; guesses: number | null; created_at: string };
+// Badges are earned over a player's whole history. A class board only loads that
+// class's rows, so remember the badges from the last "Everyone" load and merge them in.
+const allTimeBadges = new Map<string, string[]>();
 
-/** Converts a YYYY-MM-DD date key to a whole day number (null when malformed). */
-function dayNumber(dateKey: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey ?? ""));
-  if (!m) return null;
-  return Math.round(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / DAY_MS);
+/** True when the error says a column doesn't exist yet (migration not applied). */
+function isMissingColumnError(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  return error.code === "42703" || error.code === "PGRST204" || /column/i.test(error.message ?? "");
 }
 
-/**
- * Streaks are measured in calendar days (date_key, America/New_York): consecutive
- * days with a win. A missed day or a loss breaks the streak. The current streak is
- * only alive when the most recent win was today or yesterday and nothing after it
- * was a loss.
- */
-function computeStreaks(rows: GameRow[], todayDay: number | null): { currentStreak: number; bestStreak: number } {
-  const winDays = new Set<number>();
-  let lastLossDay: number | null = null;
-  for (const row of rows) {
-    const d = dayNumber(row.dateKey);
-    if (d == null) continue;
-    if (row.result === "win") winDays.add(d);
-    else if (lastLossDay == null || d > lastLossDay) lastLossDay = d;
-  }
-  if (winDays.size === 0) return { currentStreak: 0, bestStreak: 0 };
-
-  const days = Array.from(winDays).sort((a, b) => a - b);
-  let bestStreak = 0;
-  let run = 0;
-  let prev: number | null = null;
-  for (const d of days) {
-    run = prev != null && d - prev === 1 ? run + 1 : 1;
-    bestStreak = Math.max(bestStreak, run);
-    prev = d;
-  }
-
-  const lastWin = days[days.length - 1];
-  const alive =
-    todayDay != null &&
-    todayDay - lastWin <= 1 &&
-    todayDay - lastWin >= 0 &&
-    (lastLossDay == null || lastLossDay < lastWin);
-  return { currentStreak: alive ? run : 0, bestStreak };
+function cleanGroup(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const c = normalizeGroupCode(code);
+  return isValidGroupCode(c) ? c : null;
 }
 
-function computePlayerStats(rows: GameRow[], todayDay: number | null): Omit<PlayerRecord, "key" | "displayName"> {
-  let gamesPlayed = 0;
-  let wins = 0;
-  let losses = 0;
-  let points = 0;
-  let totalGuessesInWins = 0;
-  let bestGuesses: number | null = null;
-  let lastPlayedAt: string | null = null;
-
-  for (const row of rows) {
-    gamesPlayed += 1;
-    if (row.result === "win") {
-      wins += 1;
-      const g = row.guesses ?? 6;
-      totalGuessesInWins += g;
-      bestGuesses = bestGuesses == null ? g : Math.min(bestGuesses, g);
-      points += pointsForGame("win", row.guesses);
-    } else {
-      losses += 1;
-    }
-    if (!lastPlayedAt || new Date(row.created_at).getTime() > new Date(lastPlayedAt).getTime()) {
-      lastPlayedAt = row.created_at;
-    }
-  }
-
-  const { currentStreak, bestStreak } = computeStreaks(rows, todayDay);
-  const winPercentage = gamesPlayed > 0 ? (wins / gamesPlayed) * 100 : 0;
-  const avgGuessesOnWins = wins > 0 ? totalGuessesInWins / wins : null;
-
-  return {
-    gamesPlayed,
-    wins,
-    losses,
-    winPercentage,
-    points,
-    bestGuesses,
-    totalGuessesInWins,
-    avgGuessesOnWins,
-    currentStreak,
-    bestStreak,
-    lastPlayedAt
-  };
-}
-
-function aggregateResults(rows: ResultRow[]): Record<string, PlayerRecord> {
-  const byPlayer: Record<string, GameRow[]> = {};
-  const displayNames: Record<string, string> = {};
-
-  // Rows arrive ordered by created_at, so the latest display name wins.
-  for (const r of rows) {
-    const k = r.player_key;
-    if (!byPlayer[k]) byPlayer[k] = [];
-    byPlayer[k].push({ dateKey: r.date_key, result: r.result, guesses: r.guesses, created_at: r.created_at });
-    displayNames[k] = r.display_name;
-  }
-
-  const todayDay = dayNumber(getDateKey());
-  const players: Record<string, PlayerRecord> = {};
-  for (const [key, gameRows] of Object.entries(byPlayer)) {
-    players[key] = {
-      ...computePlayerStats(gameRows, todayDay),
-      key,
-      displayName: displayNames[key] ?? key
-    };
-  }
-  return players;
-}
-
-export async function fetchLeaderboard(): Promise<LeaderboardFile> {
+async function fetchRows(group: string | null): Promise<ResultRow[]> {
   if (!supabase) throw new Error(OFFLINE_MESSAGE);
+  const client = supabase;
+  let columns = SELECT_COLUMNS;
 
   // Supabase caps each response at 1000 rows, so page through everything.
   const rows: ResultRow[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
     let res;
     try {
-      res = await supabase
-        .from("game_results")
-        .select("date_key, player_key, display_name, result, guesses, created_at")
+      let q = client.from("game_results").select(columns);
+      if (group) q = q.eq("group_code", group);
+      res = await q
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
     } catch {
       throw new Error(OFFLINE_MESSAGE);
     }
-    if (res.error) throw new Error(OFFLINE_MESSAGE);
-    const page = (res.data ?? []) as ResultRow[];
+    if (res.error) {
+      // Older database without hint_used: still show the "Everyone" board.
+      if (!group && columns === SELECT_COLUMNS && from === 0 && isMissingColumnError(res.error)) {
+        columns = SELECT_COLUMNS_LEGACY;
+        from -= PAGE_SIZE;
+        continue;
+      }
+      throw new Error(OFFLINE_MESSAGE);
+    }
+    const page = (res.data ?? []) as unknown as ResultRow[];
     rows.push(...page);
     if (page.length < PAGE_SIZE) break;
   }
-  const players = aggregateResults(rows);
+  return rows;
+}
+
+/**
+ * Load the leaderboard. With a group code, only games submitted with that code
+ * count (filtered server-side); without one, everyone's games count.
+ */
+export async function fetchLeaderboard(group?: string | null): Promise<LeaderboardFile> {
+  const code = cleanGroup(group);
+  const rows = await fetchRows(code);
+  const players = aggregateResults(rows, getDateKey());
+
+  for (const p of Object.values(players)) {
+    if (code) {
+      p.badges = mergeBadgeIds(p.badges, allTimeBadges.get(p.key));
+    } else {
+      allTimeBadges.set(p.key, p.badges ?? []);
+    }
+  }
 
   return {
     version: 1,
     updatedAt: new Date().toISOString(),
-    players
+    players,
+    group: code
   };
 }
 
-export async function submitResult(input: SubmitInput): Promise<LeaderboardFile> {
+/** Validate and write one finished game (upsert on date_key + player_key). */
+export async function saveResult(input: SubmitInput): Promise<void> {
   const rawName = cleanName(input.name);
   const key = normalizeName(rawName);
   if (!key) throw new Error("Name is required.");
@@ -191,42 +122,71 @@ export async function submitResult(input: SubmitInput): Promise<LeaderboardFile>
   }
 
   if (!supabase) throw new Error(OFFLINE_MESSAGE);
+  const client = supabase;
 
-  let error;
-  try {
-    ({ error } = await supabase.from("game_results").upsert(
-      {
-        date_key: input.dateKey,
-        player_key: key,
-        display_name: rawName || key,
-        result: input.result,
-        guesses: input.result === "win" ? input.guesses : null
-      },
-      { onConflict: "date_key,player_key" }
-    ));
-  } catch {
-    throw new Error(OFFLINE_MESSAGE);
-  }
+  const base = {
+    date_key: input.dateKey,
+    player_key: key,
+    display_name: rawName || key,
+    result: input.result,
+    guesses: input.result === "win" ? input.guesses : null
+  };
+  const full = { ...base, hint_used: Boolean(input.hintUsed), group_code: cleanGroup(input.groupCode) };
 
+  const upsert = async (row: object) => {
+    try {
+      return (await client.from("game_results").upsert(row, { onConflict: "date_key,player_key" })).error;
+    } catch {
+      throw new Error(OFFLINE_MESSAGE);
+    }
+  };
+
+  let error = await upsert(full);
+  // Older database without the new columns: still record the game.
+  if (error && isMissingColumnError(error)) error = await upsert(base);
   if (error) throw new Error(OFFLINE_MESSAGE);
+}
 
+/** Save a game, then return the refreshed "Everyone" board. */
+export async function submitResult(input: SubmitInput): Promise<LeaderboardFile> {
+  await saveResult(input);
   return fetchLeaderboard();
 }
 
 // One submission per finished game (date key) per page load, even if several
 // callers (auto-submit, button, React strict-mode double effects) race.
-const inFlightSubmissions = new Map<string, Promise<LeaderboardFile>>();
+const inFlightSubmissions = new Map<string, Promise<void>>();
 
-export function submitResultOnce(input: SubmitInput): Promise<LeaderboardFile> {
+export function saveResultOnce(input: SubmitInput): Promise<void> {
   const existing = inFlightSubmissions.get(input.dateKey);
   if (existing) return existing;
-  const p = submitResult(input).catch((e) => {
+  const p = saveResult(input).catch((e) => {
     // Allow a retry after a failure.
     inFlightSubmissions.delete(input.dateKey);
     throw e;
   });
   inFlightSubmissions.set(input.dateKey, p);
   return p;
+}
+
+export async function submitResultOnce(input: SubmitInput): Promise<LeaderboardFile> {
+  await saveResultOnce(input);
+  return fetchLeaderboard();
+}
+
+/**
+ * After joining a class, file today's already-submitted game under it too, so the
+ * class board isn't missing it. Only touches the player's own row for that day.
+ */
+export async function assignGroupToDay(name: string, dateKey: string, groupCode: string): Promise<void> {
+  const key = normalizeName(cleanName(name));
+  const code = cleanGroup(groupCode);
+  if (!key || !code || !supabase) return;
+  try {
+    await supabase.from("game_results").update({ group_code: code }).eq("date_key", dateKey).eq("player_key", key);
+  } catch {
+    // Not critical: future games will carry the code.
+  }
 }
 
 export function leaderboardRows(lb: LeaderboardFile): PlayerRecord[] {
