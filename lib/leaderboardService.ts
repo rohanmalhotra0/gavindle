@@ -17,6 +17,11 @@ function normalizeName(name: string): string {
   return String(name).trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+type ResultRow = { player_key: string; display_name: string; result: string; guesses: number | null; created_at: string };
+
+const PAGE_SIZE = 1000;
+const OFFLINE_MESSAGE = "The leaderboard is having trouble right now. Please try again in a minute.";
+
 type GameRow = { result: string; guesses: number | null; created_at: string };
 
 function computePlayerStats(rows: GameRow[]): Omit<PlayerRecord, "key" | "displayName"> {
@@ -97,24 +102,27 @@ function aggregateResults(
 }
 
 export async function fetchLeaderboard(): Promise<LeaderboardFile> {
-  if (!supabase) {
-    return { version: 1, updatedAt: new Date().toISOString(), players: {} };
+  if (!supabase) throw new Error(OFFLINE_MESSAGE);
+
+  // Supabase caps each response at 1000 rows, so page through everything.
+  const rows: ResultRow[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    let res;
+    try {
+      res = await supabase
+        .from("game_results")
+        .select("player_key, display_name, result, guesses, created_at")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+    } catch {
+      throw new Error(OFFLINE_MESSAGE);
+    }
+    if (res.error) throw new Error(OFFLINE_MESSAGE);
+    const page = (res.data ?? []) as ResultRow[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
   }
-
-  const { data, error } = await supabase
-    .from("game_results")
-    .select("player_key, display_name, result, guesses, created_at")
-    .order("created_at", { ascending: true });
-
-  if (error) throw new Error(`Leaderboard fetch failed: ${error.message}`);
-
-  const rows = (data ?? []) as {
-    player_key: string;
-    display_name: string;
-    result: string;
-    guesses: number | null;
-    created_at: string;
-  }[];
   const players = aggregateResults(rows);
 
   return {
@@ -140,9 +148,11 @@ export async function submitResult(input: SubmitInput): Promise<LeaderboardFile>
     if (!(g == null || g === 6)) throw new Error("For a loss, guesses must be 6 or omitted.");
   }
 
-  if (!supabase) throw new Error("Supabase is not configured.");
+  if (!supabase) throw new Error(OFFLINE_MESSAGE);
 
-  const { error } = await supabase.from("game_results").upsert(
+  let error;
+  try {
+    ({ error } = await supabase.from("game_results").upsert(
     {
       date_key: input.dateKey,
       player_key: key,
@@ -151,9 +161,12 @@ export async function submitResult(input: SubmitInput): Promise<LeaderboardFile>
       guesses: input.result === "win" ? input.guesses : null
     },
     { onConflict: "date_key,player_key" }
-  );
+    ));
+  } catch {
+    throw new Error(OFFLINE_MESSAGE);
+  }
 
-  if (error) throw new Error(`Leaderboard submit failed: ${error.message}`);
+  if (error) throw new Error(OFFLINE_MESSAGE);
 
   return fetchLeaderboard();
 }
