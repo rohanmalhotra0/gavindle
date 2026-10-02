@@ -7,15 +7,24 @@
     "build": "NEXT_TELEMETRY_DISABLED=1 next build",
     "start": "next start",
     "lint": "next lint",
-    "leaderboard:demo": "node scripts/leaderboard-demo.js"
+    "leaderboard:demo": "node scripts/leaderboard-demo.js",
+    "ios:sync": "npm run build && cap sync ios",
+    "ios:open": "cap open ios"
   },
   "dependencies": {
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/haptics": "^7.0.5",
+    "@capacitor/ios": "^7.6.9",
+    "@capacitor/share": "^7.0.4",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6",
     "@supabase/supabase-js": "^2.98.0",
     "next": "14.2.4",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
     "@types/node": "25.0.3",
     "@types/react": "19.2.7",
     "typescript": "5.9.3"
