@@ -75,6 +75,7 @@ export default function HelpModal(props: Props) {
             <li>Each guess must be 5 letters. Press Enter to submit.</li>
             <li>After each guess, the tiles change color to show how close you were.</li>
             <li>Some answers are names and inside jokes, so think outside the dictionary.</li>
+            <li>Stuck? After your first guess you get one 💡 hint per day. It reveals a letter but costs 1 leaderboard point.</li>
           </ul>
           <Example word="GAVIN" index={0} state="correct" text="is in the word and in the right spot" />
           <Example word="PIZZA" index={1} state="present" text="is in the word but in the wrong spot" />
