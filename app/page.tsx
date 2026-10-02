@@ -8,6 +8,7 @@ import { getDailyIndex, getDailySolution, isFiveLetters, normalizeGuess } from "
 import { evaluateGuess, mergeKeyStates, type LetterState } from "@/lib/evaluateGuess";
 import { getDateKey, loadGame, loadStats, saveGame, saveStats, type Stats } from "@/lib/storage";
 import { LEADERBOARD_SUBMITTED_DATE_KEY } from "@/lib/leaderboardClient";
+import { nativeShare, resultHaptic } from "@/lib/native";
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
@@ -143,10 +144,12 @@ export default function Page() {
     if (status !== "ongoing") return;
     if (current.length !== WORD_LENGTH) {
       setTempMessage("Not enough letters");
+      resultHaptic("warning");
       return;
     }
     if (!isFiveLetters(current)) {
       setTempMessage("Use letters A–Z");
+      resultHaptic("warning");
       return;
     }
     const newGuesses = [...guesses, current];
@@ -155,6 +158,7 @@ export default function Page() {
     if (current === solution) {
       setStatus("won");
       setShowCelebration(true);
+      resultHaptic("success");
       // update stats
       const nextStats = { ...stats };
       nextStats.gamesPlayed += 1;
@@ -170,6 +174,7 @@ export default function Page() {
       setTempMessage("Nice! You got it");
     } else if (newGuesses.length >= MAX_GUESSES) {
       setStatus("lost");
+      resultHaptic("error");
       const nextStats = { ...stats };
       nextStats.gamesPlayed += 1;
       nextStats.currentStreak = 0;
@@ -237,6 +242,7 @@ export default function Page() {
     const title = `Gavindle ${dayIndex} ${status === "won" ? guesses.length : "X"}/${MAX_GUESSES}`;
     const text = `${title}\n\n${lines.join("\n")}`;
     const play = "https://gavindle.com";
+    if (await nativeShare(`${text}\n\n${play}`)) return;
     try {
       await navigator.clipboard.writeText(text);
       setTempMessage("Result copied to clipboard");

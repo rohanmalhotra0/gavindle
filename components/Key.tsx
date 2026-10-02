@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import type { LetterState } from "@/lib/evaluateGuess";
+import { tapHaptic } from "@/lib/native";
 
 type Props = {
   label: string;
@@ -27,7 +28,10 @@ export default function Key(props: Props) {
       type="button"
       className={className}
       style={{ gridColumn: wide ? "span 2" : undefined }}
-      onClick={() => onPress(label)}
+      onClick={() => {
+        tapHaptic();
+        onPress(label);
+      }}
       aria-label={label}
     >
       {label}
