@@ -20,6 +20,9 @@ import {
   type Stats
 } from "@/lib/storage";
 import { getSubmittedDateKey } from "@/lib/leaderboardClient";
+import { getDateKey, loadGame, loadStats, saveGame, saveStats, type Stats } from "@/lib/storage";
+import { LEADERBOARD_SUBMITTED_DATE_KEY } from "@/lib/leaderboardClient";
+import { nativeShare, resultHaptic } from "@/lib/native";
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
@@ -283,11 +286,13 @@ export default function Page() {
     if (current.length !== WORD_LENGTH) {
       shakeRow(row);
       setTempMessage("Not enough letters");
+      resultHaptic("warning");
       return;
     }
     if (!isFiveLetters(current)) {
       shakeRow(row);
       setTempMessage("Use letters A–Z");
+      resultHaptic("warning");
       return;
     }
     const guess = current;
@@ -304,6 +309,29 @@ export default function Page() {
       // Save the result right away so closing the tab mid-animation can't lose it
       saveGame({ dateKey, solution, guesses: newGuesses, status: finalStatus });
       const nextStats = recordResult(loadStats(), dateKey, won, newGuesses.length);
+    if (current === solution) {
+      setStatus("won");
+      setShowCelebration(true);
+      resultHaptic("success");
+      // update stats
+      const nextStats = { ...stats };
+      nextStats.gamesPlayed += 1;
+      nextStats.wins += 1;
+      nextStats.currentStreak += 1;
+      if (nextStats.currentStreak > nextStats.maxStreak) nextStats.maxStreak = nextStats.currentStreak;
+      const tries = newGuesses.length;
+      if (tries >= 1 && tries <= 6) {
+        nextStats.guessDistribution[tries - 1] += 1;
+      }
+      setStats(nextStats);
+      saveStats(nextStats);
+      setTempMessage("Nice! You got it");
+    } else if (newGuesses.length >= MAX_GUESSES) {
+      setStatus("lost");
+      resultHaptic("error");
+      const nextStats = { ...stats };
+      nextStats.gamesPlayed += 1;
+      nextStats.currentStreak = 0;
       setStats(nextStats);
       saveStats(nextStats);
     }
@@ -406,6 +434,9 @@ export default function Page() {
       }
     }
     if (await copyText(text)) {
+    if (await nativeShare(`${text}\n\n${play}`)) return;
+    try {
+      await navigator.clipboard.writeText(text);
       setTempMessage("Result copied to clipboard");
     } else {
       setTempMessage("Copy failed");

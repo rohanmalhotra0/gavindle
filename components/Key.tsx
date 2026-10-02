@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import type { LetterState } from "@/lib/evaluateGuess";
+import { tapHaptic } from "@/lib/native";
 
 type Props = {
   label: React.ReactNode;
@@ -45,6 +46,12 @@ export default function Key(props: Props) {
         onPress(value);
       }}
       aria-label={stateText ? `${name}, ${stateText}` : name}
+      style={{ gridColumn: wide ? "span 2" : undefined }}
+      onClick={() => {
+        tapHaptic();
+        onPress(label);
+      }}
+      aria-label={label}
     >
       {label}
     </button>
