@@ -7,19 +7,25 @@ export type PlayerRecord = {
   wins: number;
   losses: number;
   winPercentage: number; // derived
-  points: number; // derived: each win earns (7 - guesses), a loss earns 0
+  points: number; // derived: each win earns (7 - guesses), minus 1 if a hint was used (min 0); a loss earns 0
   bestGuesses: number | null;
   totalGuessesInWins: number;
   avgGuessesOnWins: number | null; // derived
   currentStreak: number;
   bestStreak: number;
   lastPlayedAt: string | null;
+  /** Games where the daily hint was used (server leaderboard only). */
+  hintsUsed?: number;
+  /** Earned badge ids, see lib/badges.ts (server leaderboard only). */
+  badges?: string[];
 };
 
 export type LeaderboardFile = {
   version: 1;
   updatedAt: string;
   players: Record<string, PlayerRecord>;
+  /** Group code this board is filtered to; null/undefined = everyone. */
+  group?: string | null;
 };
 
 const LEADERBOARD_KEY = "gavindle:leaderboard";
@@ -46,11 +52,66 @@ export function validateName(name: string): string | null {
   return null;
 }
 
-/** Points for a single game: 1 guess = 6 pts ... 6 guesses = 1 pt, loss = 0. */
-export function pointsForGame(result: string, guesses: number | null): number {
+/**
+ * Points for a single game: 1 guess = 6 pts ... 6 guesses = 1 pt, loss = 0.
+ * Using the hint costs 1 point (never below 0).
+ */
+export function pointsForGame(result: string, guesses: number | null, hintUsed: boolean = false): number {
   if (result !== "win") return 0;
   const g = typeof guesses === "number" && Number.isFinite(guesses) ? Math.round(guesses) : 6;
-  return 7 - Math.min(6, Math.max(1, g));
+  const base = 7 - Math.min(6, Math.max(1, g));
+  return Math.max(0, base - (hintUsed ? 1 : 0));
+}
+
+// ---- Class / group code ----
+
+export const GROUP_KEY = "gavindle:group";
+export const GROUP_MIN_LENGTH = 2;
+export const GROUP_MAX_LENGTH = 12;
+
+/** Uppercase and drop anything that isn't A-Z or 0-9 ("5b " -> "5B"). */
+export function normalizeGroupCode(code: string): string {
+  return String(code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/** Error message for an invalid (already normalized) group code, or null when OK. */
+export function validateGroupCode(code: string): string | null {
+  if (code.length < GROUP_MIN_LENGTH) return `Class codes need at least ${GROUP_MIN_LENGTH} letters or numbers.`;
+  if (code.length > GROUP_MAX_LENGTH) return `Class codes can be at most ${GROUP_MAX_LENGTH} characters.`;
+  if (!/^[A-Z0-9]+$/.test(code)) return "Use only letters and numbers.";
+  return null;
+}
+
+export function isValidGroupCode(code: unknown): code is string {
+  return typeof code === "string" && /^[A-Z0-9]{2,12}$/.test(code);
+}
+
+export function getSavedGroup(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = normalizeGroupCode(window.localStorage.getItem(GROUP_KEY) ?? "");
+    return isValidGroupCode(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveGroup(code: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(GROUP_KEY, normalizeGroupCode(code));
+  } catch {
+    // ignore
+  }
+}
+
+export function clearSavedGroup() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(GROUP_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function getSavedName(): string | null {
