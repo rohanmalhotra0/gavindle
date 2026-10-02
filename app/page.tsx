@@ -3,9 +3,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Grid, { type RowData } from "@/components/Grid";
 import Keyboard from "@/components/Keyboard";
 import Celebration from "@/components/Celebration";
+import Confetti from "@/components/Confetti";
+import EndGameCard from "@/components/EndGameCard";
+import HintConfirm from "@/components/HintConfirm";
 import HelpModal from "@/components/HelpModal";
 import LeaderboardModal from "@/components/LeaderboardModal";
-import { getDailyIndex, getDailySolution, isFiveLetters, normalizeGuess } from "@/lib/words";
+import { getDailyIndex, getDailySolution, isFiveLetters, normalizeGuess, pickHint } from "@/lib/words";
+import { WIN_TEXT, lossLine, pointsToday } from "@/lib/gavinLines";
 import { evaluateGuess, mergeKeyStates, type LetterState } from "@/lib/evaluateGuess";
 import {
   getDateKey,
@@ -17,10 +21,12 @@ import {
   recordResult,
   saveGame,
   saveStats,
+  type GameHint,
   type Stats
 } from "@/lib/storage";
-import { getSubmittedDateKey } from "@/lib/leaderboardClient";
 import { nativeShare, resultHaptic } from "@/lib/native";
+import { getSavedGroup, getSavedName, getSubmittedDateKey, markSubmitted } from "@/lib/leaderboardClient";
+import { submitResultOnce } from "@/lib/leaderboardService";
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
@@ -60,28 +66,9 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-const ROHAN_QUOTES = [
-  "Gavindle doesn't reward hope. It rewards process.",
-  "Confidence is built in practice, not in guess three.",
-  "If you want green, earn it.",
-  "Lock in. Then let the tiles speak.",
-  "You don't need luck. You need a plan.",
-  "Every guess should do a job.",
-  "Guessing random is donating attempts.",
-  "Play calm. Play sharp.",
-  "Execution beats emotion every time.",
-  "Speed is cool. Precision is deadly.",
-  "Your streak is your discipline in public.",
-  "Today's puzzle is a mirror.",
-  "No tilt. Just tactics.",
-  "A great solve is just good habits stacked.",
-  "You can't bluff the board.",
-  "Intentional guesses win games.",
-  "Don't chase the answer. Box it in.",
-  "Control the letters. Control the outcome."
-];
-
 type GameStatus = "ongoing" | "won" | "lost";
+// After the game: "celebrate" = win/loss moment overlay, "card" = results card
+type EndPhase = "none" | "celebrate" | "card";
 
 export default function Page() {
   // `today` is state (not memoized once) so a tab left open past midnight
@@ -95,7 +82,12 @@ export default function Page() {
   const [current, setCurrent] = useState<string>("");
   const [message, setMessage] = useState<string>("");
   const [status, setStatus] = useState<GameStatus>("ongoing");
-  const [showCelebration, setShowCelebration] = useState<boolean>(false);
+  const [endPhase, setEndPhase] = useState<EndPhase>("none");
+  // True when the card appears right after a live celebration (moves focus to Share)
+  const [cardAfterCelebration, setCardAfterCelebration] = useState<boolean>(false);
+  const [confettiShot, setConfettiShot] = useState<number>(0);
+  const [hint, setHint] = useState<GameHint | null>(null);
+  const [hintConfirmOpen, setHintConfirmOpen] = useState<boolean>(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
   const [submittedToday, setSubmittedToday] = useState<boolean>(false);
   const [helpOpen, setHelpOpen] = useState<boolean>(false);
@@ -156,10 +148,17 @@ export default function Page() {
     if (persisted && persisted.dateKey === dateKey && persisted.solution === solution) {
       setGuesses(persisted.guesses.slice(0, MAX_GUESSES));
       setStatus(persisted.status);
+      // A save with hintUsed but no letter (shouldn't happen) still counts the hint
+      setHint(persisted.hint ?? (persisted.hintUsed ? { index: -1, letter: "" } : null));
+      setEndPhase(persisted.status === "ongoing" ? "none" : "card");
     } else {
       setGuesses([]);
       setStatus("ongoing");
+      setHint(null);
+      setEndPhase("none");
     }
+    setCardAfterCelebration(false);
+    setHintConfirmOpen(false);
     setCurrent("");
     setRevealRow(null);
     setWinRow(null);
@@ -168,19 +167,22 @@ export default function Page() {
     setLoadedKey(dateKey);
   }, [dateKey, solution]);
 
+  // Roll over to the new puzzle once the date (America/New_York) changes
+  const checkRollover = useCallback(() => {
+    if (document.visibilityState === "hidden") return;
+    const now = new Date();
+    if (getDateKey(now) !== dateKey) {
+      clearTimers();
+      if (messageTimerRef.current) window.clearTimeout(messageTimerRef.current);
+      setMessage("");
+      setEndPhase("none");
+      setToday(now);
+    }
+  }, [dateKey, clearTimers]);
+
   // Detect a new day when the tab regains focus / becomes visible (and periodically)
   useEffect(() => {
-    const check = () => {
-      if (document.visibilityState === "hidden") return;
-      const now = new Date();
-      if (getDateKey(now) !== dateKey) {
-        clearTimers();
-        if (messageTimerRef.current) window.clearTimeout(messageTimerRef.current);
-        setMessage("");
-        setShowCelebration(false);
-        setToday(now);
-      }
-    };
+    const check = checkRollover;
     check();
     document.addEventListener("visibilitychange", check);
     window.addEventListener("focus", check);
@@ -190,7 +192,7 @@ export default function Page() {
       window.removeEventListener("focus", check);
       window.clearInterval(interval);
     };
-  }, [dateKey, clearTimers]);
+  }, [checkRollover]);
 
   // Build rows whenever state changes
   const rows = useMemo<RowData[]>(() => {
@@ -219,24 +221,49 @@ export default function Page() {
   // the final result is saved immediately on submit, see onSubmit)
   useEffect(() => {
     if (loadedKey !== dateKey || revealRow !== null) return;
-    saveGame({ dateKey, solution, guesses, status });
-  }, [dateKey, solution, guesses, status, loadedKey, revealRow]);
+    saveGame({ dateKey, solution, guesses, status, ...hintFields(hint) });
+  }, [dateKey, solution, guesses, status, loadedKey, revealRow, hint]);
 
   // Leaderboard: has today's result already been submitted from this device?
   useEffect(() => {
     setSubmittedToday(getSubmittedDateKey() === dateKey);
   }, [dateKey]);
 
-  // Auto-open leaderboard after game ends (once per day). With a saved name the
-  // modal submits the result (win or loss) automatically; otherwise it asks for a name.
+  const hintUsed = hint !== null;
+
+  // Leaderboard auto-submit: once the results card is showing (never during the
+  // celebration), a player with a saved name has today's result submitted in the
+  // background. The leaderboard itself only opens when they tap "Leaderboard";
+  // without a saved name that button asks for one (LeaderboardModal's prompt).
+  const autoSubmittedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || endPhase !== "card") return;
     if (status !== "won" && status !== "lost") return;
-    const persisted = loadGame();
-    if (!persisted || persisted.dateKey !== dateKey) return;
-    if (getSubmittedDateKey() === dateKey) return;
-    setLeaderboardOpen(true);
-  }, [status, mounted, dateKey]);
+    if (loadedKey !== dateKey) return;
+    if (getSubmittedDateKey() === dateKey) {
+      setSubmittedToday(true);
+      return;
+    }
+    const name = getSavedName();
+    if (!name || autoSubmittedRef.current === dateKey) return;
+    autoSubmittedRef.current = dateKey;
+    const input = {
+      dateKey,
+      name,
+      result: status === "won" ? ("win" as const) : ("loss" as const),
+      guesses: status === "won" ? guesses.length : null,
+      hintUsed,
+      groupCode: getSavedGroup()
+    };
+    submitResultOnce(input)
+      .then(() => {
+        markSubmitted(dateKey);
+        setSubmittedToday(true);
+      })
+      .catch(() => {
+        // Opening the leaderboard retries (LeaderboardModal auto-submits with the saved name)
+      });
+  }, [mounted, endPhase, status, loadedKey, dateKey, guesses.length, hintUsed]);
 
   // A ref'd timer so an older message's timeout can't clear a newer message early
   const setTempMessage = useCallback((m: string, ms: number = 1500) => {
@@ -305,7 +332,7 @@ export default function Page() {
 
     if (finalStatus !== "ongoing") {
       // Save the result right away so closing the tab mid-animation can't lose it
-      saveGame({ dateKey, solution, guesses: newGuesses, status: finalStatus });
+      saveGame({ dateKey, solution, guesses: newGuesses, status: finalStatus, ...hintFields(hint) });
       const nextStats = recordResult(loadStats(), dateKey, won, newGuesses.length);
       setStats(nextStats);
       saveStats(nextStats);
@@ -319,24 +346,30 @@ export default function Page() {
       busyRef.current = false;
       if (finalStatus === "won") {
         setStatus("won");
-        setTempMessage("Nice! You got it");
+        setHintConfirmOpen(false);
+        const celebrate = () => {
+          setEndPhase("celebrate");
+          setConfettiShot((n) => n + 1);
+        };
         if (reduced) {
-          setShowCelebration(true);
+          celebrate();
         } else {
+          setTempMessage("Nice! You got it", BOUNCE_MS);
           setWinRow(row);
-          later(() => setShowCelebration(true), BOUNCE_MS);
+          later(celebrate, BOUNCE_MS);
         }
       } else if (finalStatus === "lost") {
         setStatus("lost");
-        setTempMessage(`The word was ${solution.toUpperCase()}`, 2500);
+        setHintConfirmOpen(false);
+        later(() => setEndPhase("celebrate"), reduced ? 0 : 250);
       }
     }, revealMs);
-  }, [current, guesses, solution, status, dateKey, setTempMessage, shakeRow, later]);
+  }, [current, guesses, solution, status, dateKey, hint, setTempMessage, shakeRow, later]);
 
   // Physical keyboard
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (leaderboardOpen || helpOpen) return;
+      if (leaderboardOpen || helpOpen || hintConfirmOpen || endPhase === "celebrate") return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
@@ -371,7 +404,7 @@ export default function Page() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onType, onBackspace, onSubmit, leaderboardOpen, helpOpen]);
+  }, [onType, onBackspace, onSubmit, leaderboardOpen, helpOpen, hintConfirmOpen, endPhase]);
 
   const onKey = useCallback(
     (label: string) => {
@@ -395,7 +428,7 @@ export default function Page() {
         .join("");
       lines.push(line);
     }
-    const title = `Gavindle ${dayIndex} ${status === "won" ? guesses.length : "X"}/${MAX_GUESSES}`;
+    const title = `Gavindle ${dayIndex} ${status === "won" ? guesses.length : "X"}/${MAX_GUESSES}${hintUsed ? "💡" : ""}`;
     const play = "https://gavindle.com";
     const text = `${title}\n\n${lines.join("\n")}\n\n${play}`;
     // iOS app share sheet first, then web share on phones/tablets, else clipboard
@@ -415,10 +448,41 @@ export default function Page() {
     } else {
       setTempMessage("Copy failed");
     }
-  }, [guesses, solution, dayIndex, status, setTempMessage]);
+  }, [guesses, solution, dayIndex, status, hintUsed, setTempMessage]);
 
   const closeHelp = useCallback(() => setHelpOpen(false), []);
-  const hideCelebration = useCallback(() => setShowCelebration(false), []);
+  const onCelebrationDone = useCallback(() => {
+    setCardAfterCelebration(true);
+    setEndPhase("card");
+  }, []);
+
+  // Hints: one per day, after at least one guess
+  const canHint = mounted && status === "ongoing" && !hintUsed && guesses.length >= 1 && revealRow === null;
+  const openHint = useCallback(() => {
+    if (!canHint || busyRef.current) return;
+    setHintConfirmOpen(true);
+  }, [canHint]);
+  const cancelHint = useCallback(() => setHintConfirmOpen(false), []);
+  const confirmHint = useCallback(() => {
+    setHintConfirmOpen(false);
+    if (status !== "ongoing" || hint !== null || busyRef.current) return;
+    const picked = pickHint(solution, guesses);
+    if (!picked) return;
+    setHint(picked);
+    setTempMessage(`💡 Letter ${picked.index + 1} is ${picked.letter.toUpperCase()}`, 3500);
+  }, [status, hint, solution, guesses, setTempMessage]);
+  const hintLetter = hint !== null && hint.index >= 0 && hint.letter !== "" ? hint : null;
+  const ghost =
+    status === "ongoing" && hintLetter && guesses.length < MAX_GUESSES
+      ? { row: guesses.length, index: hintLetter.index, letter: hintLetter.letter }
+      : null;
+
+  const rowStates = useMemo(() => guesses.map((g) => evaluateGuess(g, solution)), [guesses, solution]);
+  const isOver = status === "won" || status === "lost";
+  const points = pointsToday(status === "won", guesses.length, hintUsed);
+  // The loss line waits for the loss moment so it doesn't spoil it
+  const hudLine = status === "won" ? WIN_TEXT : status === "lost" && endPhase === "card" ? lossLine(dayIndex) : "";
+  const leaderboardLabel = submittedToday || (mounted && getSavedName()) ? "Leaderboard" : "Join leaderboard";
 
   const leaderboardResult = status === "won" ? "win" : "loss";
   const leaderboardGuesses = status === "won" ? guesses.length : null;
@@ -426,6 +490,35 @@ export default function Page() {
   return (
     <div className="game">
       <div className="hud">
+        {canHint && (
+          <button
+            type="button"
+            className="eg-hint-btn"
+            aria-haspopup="dialog"
+            onClick={(e) => {
+              if (e.detail > 0) e.currentTarget.blur();
+              openHint();
+            }}
+          >
+            <span aria-hidden="true">💡</span> Hint
+          </button>
+        )}
+        {status === "ongoing" && hintLetter && (
+          <div
+            className="eg-hint-chip"
+            role="note"
+            aria-label={`Hint: letter ${hintLetter.index + 1} is ${hintLetter.letter.toUpperCase()}`}
+          >
+            <span aria-hidden="true">💡</span>
+            <span aria-hidden="true">
+              #{hintLetter.index + 1} <strong>{hintLetter.letter.toUpperCase()}</strong>
+            </span>
+          </div>
+        )}
+        <div className={`message eg-hud-line${message ? " eg-hidden" : ""}`}>{isOver ? hudLine : ""}</div>
+        <div className="eg-toast-slot" role="status" aria-live="polite">
+          {message && <div className="message toast">{message}</div>}
+        </div>
         <button
           type="button"
           className="icon-btn help-btn"
@@ -438,17 +531,6 @@ export default function Page() {
         >
           ?
         </button>
-        <div className={message ? "message toast" : "message"} role="status" aria-live="polite" style={{ textAlign: "center" }}>
-          {message || (status === "won" ? "You win! Gavin would be so proud of you!" : status === "lost" ? <div style={{ textAlign: "center" }}>The Word Was:<br />{solution.toUpperCase()}<br /><br />Gavin is severely disappointed.</div> : "")}
-        </div>
-        {(status === "won" || status === "lost") && (
-          <div className="actions">
-            <button className="btn" onClick={share}>Share</button>
-            <button className="btn secondary" onClick={() => setLeaderboardOpen(true)}>
-              {submittedToday ? "View Leaderboard" : "Send to Leaderboard"}
-            </button>
-          </div>
-        )}
       </div>
 
       <Grid
@@ -458,21 +540,53 @@ export default function Page() {
         shakeRow={shake.row}
         shakeNonce={shake.nonce}
         revealStepMs={REVEAL_STEP_MS}
+        ghost={ghost}
       />
 
-      {status === "ongoing" && <Keyboard onKey={onKey} keyStates={keyStates} />}
+      {isOver && endPhase === "card" ? (
+        <EndGameCard
+          won={status === "won"}
+          guessCount={guesses.length}
+          solution={solution}
+          rowStates={rowStates}
+          hintUsed={hintUsed}
+          points={points}
+          leaderboardLabel={leaderboardLabel}
+          onShare={share}
+          onLeaderboard={() => setLeaderboardOpen(true)}
+          onNextWord={checkRollover}
+          autoFocus={cardAfterCelebration}
+        />
+      ) : (
+        <Keyboard onKey={onKey} keyStates={keyStates} />
+      )}
 
-      <Celebration show={showCelebration} onHide={hideCelebration} />
+      <Celebration
+        show={isOver && endPhase === "celebrate"}
+        mode={status === "won" ? "win" : "loss"}
+        guesses={guesses.length}
+        streak={stats.currentStreak}
+        solution={solution}
+        dayIndex={dayIndex}
+        onDone={onCelebrationDone}
+      />
+      <Confetti shot={confettiShot} guesses={guesses.length} />
+      <HintConfirm open={hintConfirmOpen && status === "ongoing"} onConfirm={confirmHint} onCancel={cancelHint} />
       <HelpModal open={helpOpen} onClose={closeHelp} />
       <LeaderboardModal
-        open={leaderboardOpen && (status === "won" || status === "lost")}
+        open={leaderboardOpen && isOver}
         onClose={() => setLeaderboardOpen(false)}
         onSubmitted={() => setSubmittedToday(true)}
         dateKey={dateKey}
         result={leaderboardResult}
         guesses={leaderboardGuesses}
+        hintUsed={hintUsed}
       />
     </div>
   );
 }
 
+function hintFields(hint: GameHint | null): { hintUsed?: boolean; hint?: GameHint } {
+  if (!hint) return {};
+  return hint.index >= 0 && hint.letter ? { hintUsed: true, hint } : { hintUsed: true };
+}

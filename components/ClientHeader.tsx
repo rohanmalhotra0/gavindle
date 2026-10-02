@@ -1,47 +1,56 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import type { Stats } from "@/lib/storage";
-import { clearSavedName, getSavedName, normalizeName } from "@/lib/leaderboardClient";
+import { getDateKey, loadStats as readStats, normalizeStreak, type Stats } from "@/lib/storage";
+import { clearSavedName, getSavedGroup, getSavedName, normalizeName } from "@/lib/leaderboardClient";
 import { getDailyIndex } from "@/lib/words";
 import LeaderboardView from "@/components/LeaderboardView";
+import Modal from "@/components/Modal";
 import { useLeaderboard } from "@/components/useLeaderboard";
+import "./leaderboard.css";
 
-function Bar({ count, max, label }: { count: number; max: number; label: string }) {
-  const pct = max > 0 ? (count / max) * 100 : 0;
+function Bar({ count, max, label, highlight }: { count: number; max: number; label: string; highlight?: boolean }) {
+  const pct = max > 0 ? Math.max((count / max) * 100, count > 0 ? 8 : 0) : 0;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-      <span style={{ width: 12, textAlign: "right", fontWeight: 600, fontSize: 11 }}>{label}</span>
-      <div style={{ flex: 1, height: 14, background: "#d3d6da", overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: "#6aaa64" }} />
+    <div className="sm-bar-row">
+      <span className="sm-bar-label">{label}</span>
+      <div className="sm-bar-track">
+        <div className={`sm-bar-fill${highlight ? " is-best" : ""}`} style={{ width: `${pct}%` }} />
       </div>
-      <span style={{ width: 18, textAlign: "left", fontSize: 11 }}>{count}</span>
+      <span className="sm-bar-count">{count}</span>
     </div>
   );
 }
 
-function StatsModal({ stats, onClose }: { stats: Stats; onClose: () => void }) {
+function StatsModal({ open, stats, onClose }: { open: boolean; stats: Stats; onClose: () => void }) {
   const maxDist = Math.max(...stats.guessDistribution, 1);
   const winPct = stats.gamesPlayed > 0 ? Math.round((stats.wins / stats.gamesPlayed) * 100) : 0;
+  const tiles: [number, string][] = [
+    [stats.gamesPlayed, "Played"],
+    [winPct, "Win %"],
+    [stats.currentStreak, "Streak"],
+    [stats.maxStreak, "Max"]
+  ];
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 340, maxHeight: "80vh", overflow: "auto", padding: 16, border: "1px solid #d3d6da" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>STATISTICS</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: 4 }}>X</button>
+    <Modal open={open} onClose={onClose} title="STATISTICS" size="sm" closeLabel="Close statistics">
+      <div className="sm-body">
+        <dl className="sm-grid">
+          {tiles.map(([value, label]) => (
+            <div key={label} className="sm-tile">
+              <dt className="sm-label">{label}</dt>
+              <dd className="sm-number">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <h3 className="sm-heading">GUESS DISTRIBUTION</h3>
+        <div>
+          {[1, 2, 3, 4, 5, 6].map((n) => {
+            const count = stats.guessDistribution[n - 1] || 0;
+            return <Bar key={n} count={count} max={maxDist} label={String(n)} highlight={count > 0 && count === maxDist} />;
+          })}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16, textAlign: "center" }}>
-          <div><div style={{ fontSize: 20, fontWeight: 800 }}>{stats.gamesPlayed}</div><div style={{ fontSize: 10 }}>Played</div></div>
-          <div><div style={{ fontSize: 20, fontWeight: 800 }}>{winPct}</div><div style={{ fontSize: 10 }}>Win %</div></div>
-          <div><div style={{ fontSize: 20, fontWeight: 800 }}>{stats.currentStreak}</div><div style={{ fontSize: 10 }}>Streak</div></div>
-          <div><div style={{ fontSize: 20, fontWeight: 800 }}>{stats.maxStreak}</div><div style={{ fontSize: 10 }}>Max</div></div>
-        </div>
-        <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12 }}>GUESS DISTRIBUTION</div>
-        <div>{[1, 2, 3, 4, 5, 6].map((n) => (
-          <Bar key={n} count={stats.guessDistribution[n - 1] || 0} max={maxDist} label={String(n)} />
-        ))}</div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -72,21 +81,8 @@ export default function ClientHeader() {
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [leaderboardNotice, setLeaderboardNotice] = useState<string | null>(null);
 
-  const loadStats = () => {
-    setStats({
-      gamesPlayed: 0,
-      wins: 0,
-      currentStreak: 0,
-      maxStreak: 0,
-      guessDistribution: [0, 0, 0, 0, 0, 0]
-    });
-    try {
-      const stored = window.localStorage.getItem("gavindle:stats");
-      if (stored) {
-        setStats(JSON.parse(stored));
-      }
-    } catch {}
-  };
+  // Sanitized read (a malformed saved value can't crash the stats dialog).
+  const loadStats = () => setStats(normalizeStreak(readStats(), getDateKey()));
 
   useEffect(() => {
     loadStats();
@@ -101,7 +97,7 @@ export default function ClientHeader() {
     const saved = getSavedName();
     setHighlightKey(saved ? normalizeName(saved) : null);
     setLeaderboardNotice(null);
-    void leaderboard.reload();
+    void leaderboard.load(getSavedGroup());
     setShowLeaderboard(true);
   };
 
@@ -118,33 +114,29 @@ export default function ClientHeader() {
     <>
       <header className="app-header">
         <div className="app-header-inner">
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#787c7e", textAlign: "left" }}>
+          <div className="sm-day">
             Day {dayIndex}
           </div>
           <h1 className="brand">Gavindle</h1>
           <div style={{ display: "flex", gap: 4 }}>
-            <button className="icon-btn" onClick={openStats} aria-label="Statistics">
+            <button className="icon-btn" onClick={openStats} aria-label="Statistics" aria-haspopup="dialog">
               <StatsIcon />
             </button>
-            <button className="icon-btn" onClick={openLeaderboard} aria-label="Leaderboard">
+            <button className="icon-btn" onClick={openLeaderboard} aria-label="Leaderboard" aria-haspopup="dialog">
               <LeaderboardIcon />
             </button>
           </div>
         </div>
       </header>
-      {showStats && <StatsModal stats={stats} onClose={() => setShowStats(false)} />}
-      {showLeaderboard && (
-        <LeaderboardView
-          players={leaderboard.players}
-          loading={leaderboard.loading}
-          error={leaderboard.error}
-          onRetry={() => void leaderboard.reload()}
-          highlightKey={highlightKey}
-          notice={leaderboardNotice}
-          onChangeName={highlightKey ? changeName : undefined}
-          onClose={() => setShowLeaderboard(false)}
-        />
-      )}
+      <StatsModal open={showStats} stats={stats} onClose={() => setShowStats(false)} />
+      <LeaderboardView
+        open={showLeaderboard}
+        board={leaderboard}
+        highlightKey={highlightKey}
+        notice={leaderboardNotice}
+        onChangeName={highlightKey ? changeName : undefined}
+        onClose={() => setShowLeaderboard(false)}
+      />
     </>
   );
 }
