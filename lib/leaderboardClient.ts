@@ -7,6 +7,7 @@ export type PlayerRecord = {
   wins: number;
   losses: number;
   winPercentage: number; // derived
+  points: number; // derived: each win earns (7 - guesses), a loss earns 0
   bestGuesses: number | null;
   totalGuessesInWins: number;
   avgGuessesOnWins: number | null; // derived
@@ -25,13 +26,82 @@ const LEADERBOARD_KEY = "gavindle:leaderboard";
 const CORRUPT_PREFIX = "gavindle:leaderboard:corrupt:";
 export const LEADERBOARD_SUBMITTED_DATE_KEY = "gavindle:leaderboard:submittedDateKey";
 
+export const LEADERBOARD_NAME_KEY = "gavindle:leaderboard:name";
+export const MAX_NAME_LENGTH = 20;
+
 export function normalizeName(name: string): string {
   return String(name).trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/** Trim and collapse internal whitespace (keeps the player's casing). */
+export function cleanName(name: string): string {
+  return String(name ?? "").trim().replace(/\s+/g, " ");
+}
+
+/** Returns an error message for an invalid display name, or null when it is OK. */
+export function validateName(name: string): string | null {
+  const cleaned = cleanName(name);
+  if (!cleaned) return "Please enter your name.";
+  if (cleaned.length > MAX_NAME_LENGTH) return `Names can be at most ${MAX_NAME_LENGTH} characters.`;
+  return null;
+}
+
+/** Points for a single game: 1 guess = 6 pts ... 6 guesses = 1 pt, loss = 0. */
+export function pointsForGame(result: string, guesses: number | null): number {
+  if (result !== "win") return 0;
+  const g = typeof guesses === "number" && Number.isFinite(guesses) ? Math.round(guesses) : 6;
+  return 7 - Math.min(6, Math.max(1, g));
+}
+
+export function getSavedName(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = cleanName(window.localStorage.getItem(LEADERBOARD_NAME_KEY) ?? "");
+    return saved || null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveName(name: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LEADERBOARD_NAME_KEY, cleanName(name));
+  } catch {
+    // ignore
+  }
+}
+
+export function clearSavedName() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LEADERBOARD_NAME_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function getSubmittedDateKey(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(LEADERBOARD_SUBMITTED_DATE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function markSubmitted(dateKey: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LEADERBOARD_SUBMITTED_DATE_KEY, dateKey);
+  } catch {
+    // ignore
+  }
+}
+
 export function computeDerivedStats(player: PlayerRecord): Pick<
   PlayerRecord,
-  "winPercentage" | "avgGuessesOnWins" | "bestGuesses"
+  "winPercentage" | "avgGuessesOnWins" | "bestGuesses" | "points"
 > {
   const gamesPlayed = Number.isFinite(player.gamesPlayed) ? player.gamesPlayed : 0;
   const wins = Number.isFinite(player.wins) ? player.wins : 0;
@@ -41,7 +111,9 @@ export function computeDerivedStats(player: PlayerRecord): Pick<
   const avgGuessesOnWins = wins > 0 ? totalGuessesInWins / wins : null;
   const bestGuesses = wins > 0 && Number.isFinite(player.bestGuesses) ? (player.bestGuesses as number) : null;
 
-  return { winPercentage, avgGuessesOnWins, bestGuesses };
+  const points = Number.isFinite(player.points) ? player.points : 0;
+
+  return { winPercentage, avgGuessesOnWins, bestGuesses, points };
 }
 
 function emptyLeaderboard(): LeaderboardFile {
@@ -121,6 +193,7 @@ export function upsertPlayerResult(
     wins: 0,
     losses: 0,
     winPercentage: 0,
+    points: 0,
     bestGuesses: null,
     totalGuessesInWins: 0,
     avgGuessesOnWins: null,
@@ -139,6 +212,7 @@ export function upsertPlayerResult(
       throw new Error("Guesses must be an integer from 1 to 6 for a win.");
     }
     existing.wins += 1;
+    existing.points = (existing.points || 0) + pointsForGame("win", guesses);
     existing.totalGuessesInWins += guesses;
     existing.bestGuesses = existing.bestGuesses == null ? guesses : Math.min(existing.bestGuesses, guesses);
     existing.currentStreak += 1;
@@ -162,6 +236,10 @@ export function upsertPlayerResult(
   };
 }
 
+/**
+ * Rank by total points (desc), then wins (desc), then average guesses on wins
+ * (asc, players with no wins last), then name (A-Z).
+ */
 export function sortPlayersForLeaderboard(players: PlayerRecord[]): PlayerRecord[] {
   const nullsLastAsc = (a: number | null, b: number | null) => {
     const aNull = a == null;
@@ -173,13 +251,10 @@ export function sortPlayersForLeaderboard(players: PlayerRecord[]): PlayerRecord
   };
 
   return players.sort((pa, pb) => {
-    if (pb.winPercentage !== pa.winPercentage) return pb.winPercentage - pa.winPercentage;
-    if (pb.gamesPlayed !== pa.gamesPlayed) return pb.gamesPlayed - pa.gamesPlayed;
-    const bestCmp = nullsLastAsc(pa.bestGuesses, pb.bestGuesses);
-    if (bestCmp !== 0) return bestCmp;
+    if (pb.points !== pa.points) return pb.points - pa.points;
+    if (pb.wins !== pa.wins) return pb.wins - pa.wins;
     const avgCmp = nullsLastAsc(pa.avgGuessesOnWins, pb.avgGuessesOnWins);
     if (avgCmp !== 0) return avgCmp;
-    return 0;
+    return pa.displayName.localeCompare(pb.displayName, undefined, { sensitivity: "base" });
   });
 }
-

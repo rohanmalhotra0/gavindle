@@ -29,7 +29,7 @@ export const CUSTOM_SOLUTIONS = [
   "merge", "clone", "build", "scrum", "agile", "react", "flask", "swift",
   "linux", "shell", "logic", "proof", "model", "train", "epoch", "token",
   "agent", "llama", "sword", "armor", "cable", "radar", "drone", "orbit",
-  "comet", "lunar", "solar", "venus", "earth", "pluto", "saturn", "marsy",
+  "comet", "lunar", "solar", "venus", "earth", "pluto", "titan", "marsy",
   "novae", "kings", "queer", "xerox", "vapor", "cubic", "dandy", "snack",
   "wrath", "mirth", "giddy", "bunny", "dream", "sleek", "tribe", "vital",
   "moral", "saint", "slyly", "witty", "zesty", "yeast", "noble", "civic",

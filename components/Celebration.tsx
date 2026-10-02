@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
   show: boolean;
@@ -12,25 +12,40 @@ export default function Celebration(props: Props) {
   const [visible, setVisible] = useState<boolean>(false);
   const [renderConfetti, setRenderConfetti] = useState<boolean>(false);
 
+  // Keep the latest onHide in a ref so a new callback identity on every parent
+  // render doesn't restart the hide timer (which used to extend the overlay).
+  const onHideRef = useRef(onHide);
+  useEffect(() => {
+    onHideRef.current = onHide;
+  }, [onHide]);
+
+  const hide = useRef(() => {
+    setVisible(false);
+    setRenderConfetti(false);
+    onHideRef.current?.();
+  }).current;
+
   // Only render confetti on client after becoming visible to avoid SSR mismatch
   useEffect(() => {
     if (show) {
       setVisible(true);
-      const t1 = window.setTimeout(() => setRenderConfetti(true), 0);
-      const t2 = window.setTimeout(() => {
-        setVisible(false);
-        setRenderConfetti(false);
-        onHide?.();
-      }, durationMs);
+      const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+      const t1 = window.setTimeout(() => setRenderConfetti(!reduced), 0);
+      const t2 = window.setTimeout(hide, durationMs);
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") hide();
+      };
+      window.addEventListener("keydown", onKey);
       return () => {
         window.clearTimeout(t1);
         window.clearTimeout(t2);
+        window.removeEventListener("keydown", onKey);
       };
     } else {
       setVisible(false);
       setRenderConfetti(false);
     }
-  }, [show, onHide, durationMs]);
+  }, [show, durationMs, hide]);
 
   const pieces = useMemo(() => {
     return Array.from({ length: 120 }).map((_, i) => {
@@ -50,7 +65,7 @@ export default function Celebration(props: Props) {
   const photoSrc = `${basePath}/GavinPhoto.PNG`;
 
   return (
-    <div className="celebration-overlay" role="dialog" aria-label="Celebration">
+    <div className="celebration-overlay" role="dialog" aria-label="Celebration" onClick={hide}>
       <div className="celebration-inner">
         <div className="celebration-photo">
           <img
@@ -85,6 +100,3 @@ export default function Celebration(props: Props) {
     </div>
   );
 }
-
-
-
