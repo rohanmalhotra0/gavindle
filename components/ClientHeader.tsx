@@ -1,31 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import type { Stats } from "@/lib/storage";
-import type { PlayerRecord } from "@/lib/leaderboardClient";
-import { loadStats } from "@/lib/storage";
-import { fetchLeaderboard, leaderboardRows } from "@/lib/leaderboardService";
+import { clearSavedName, getSavedName, normalizeName } from "@/lib/leaderboardClient";
 import { getDailyIndex } from "@/lib/words";
-
-const ROHAN_QUOTES = [
-  "Gavindle doesn't reward hope. It rewards process.",
-  "Confidence is built in practice, not in guess three.",
-  "If you want green, earn it.",
-  "Lock in. Then let the tiles speak.",
-  "You don't need luck. You need a plan.",
-  "Every guess should do a job.",
-  "Guessing random is donating attempts.",
-  "Play calm. Play sharp.",
-  "Execution beats emotion every time.",
-  "Speed is cool. Precision is deadly.",
-  "Your streak is your discipline in public.",
-  "Today's puzzle is a mirror.",
-  "No tilt. Just tactics.",
-  "A great solve is just good habits stacked.",
-  "You can't bluff the board.",
-  "Intentional guesses win games.",
-  "Don't chase the answer. Box it in.",
-  "Control the letters. Control the outcome."
-];
+import LeaderboardView from "@/components/LeaderboardView";
+import { useLeaderboard } from "@/components/useLeaderboard";
 
 function Bar({ count, max, label }: { count: number; max: number; label: string }) {
   const pct = max > 0 ? (count / max) * 100 : 0;
@@ -66,67 +45,6 @@ function StatsModal({ stats, onClose }: { stats: Stats; onClose: () => void }) {
   );
 }
 
-function LeaderboardModal({ players, onClose, loading, error }: { players: PlayerRecord[]; onClose: () => void; loading?: boolean; error?: string | null }) {
-  const dayIndex = getDailyIndex(new Date());
-  const quote = ROHAN_QUOTES[dayIndex % ROHAN_QUOTES.length];
-  const goat = players.length > 0 ? players[0].displayName : null;
-
-  return (
-    <div className="modal-overlay" onClick={onClose} style={{ alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "white", width: "100%", maxWidth: 340, maxHeight: "80vh", overflow: "auto", padding: 16, border: "1px solid #d3d6da" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>LEADERBOARD</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: 4 }}>X</button>
-        </div>
-        {loading ? (
-          <div style={{ color: "#687387", textAlign: "center", padding: 20 }}>Loading...</div>
-        ) : error ? (
-          <div style={{ color: "#d32f2f", textAlign: "center", padding: 20 }}>{error}</div>
-        ) : (
-          <>
-            {goat && (
-              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8, color: "#1a1a1b" }}>
-                Gavindler #1 GOAT: {goat}
-              </div>
-            )}
-            {players.length === 0 ? (
-              <div style={{ color: "#687387", textAlign: "center", padding: 20 }}>No entries yet</div>
-            ) : (
-          <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid #d3d6da" }}>
-                <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>#</th>
-                <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Player</th>
-                <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Played</th>
-                <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Win %</th>
-                <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Best</th>
-                <th style={{ padding: 6, textAlign: "left", fontWeight: 800 }}>Streak</th>
-              </tr>
-            </thead>
-            <tbody>
-              {players.slice(0, 30).map((p, idx) => (
-                <tr key={p.key} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                  <td style={{ padding: 6 }}>{idx + 1}</td>
-                  <td style={{ padding: 6 }}>{p.displayName}</td>
-                  <td style={{ padding: 6 }}>{p.gamesPlayed}</td>
-                  <td style={{ padding: 6 }}>{Math.round(p.winPercentage)}%</td>
-                  <td style={{ padding: 6 }}>{p.bestGuesses ?? "-"}</td>
-                  <td style={{ padding: 6 }}>{p.currentStreak}/{p.bestStreak}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-            )}
-          </>
-        )}
-        <div style={{ marginTop: 12, fontStyle: "italic", fontSize: 11, color: "#687387", textAlign: "center" }}>
-          Rohan Quote of the day: {quote}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const StatsIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -150,9 +68,9 @@ export default function ClientHeader() {
   const [showStats, setShowStats] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [stats, setStats] = useState<Stats>({ gamesPlayed: 0, wins: 0, currentStreak: 0, maxStreak: 0, guessDistribution: [0,0,0,0,0,0] });
-  const [players, setPlayers] = useState<PlayerRecord[]>([]);
-  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
-  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const leaderboard = useLeaderboard();
+  const [highlightKey, setHighlightKey] = useState<string | null>(null);
+  const [leaderboardNotice, setLeaderboardNotice] = useState<string | null>(null);
 
   const loadStats = () => {
     setStats({
@@ -170,25 +88,8 @@ export default function ClientHeader() {
     } catch {}
   };
 
-  const refreshLeaderboard = () => {
-    setLoadingLeaderboard(true);
-    setLeaderboardError(null);
-    fetchLeaderboard()
-      .then((lb) => {
-        setPlayers(leaderboardRows(lb));
-        setLeaderboardError(null);
-        setLoadingLeaderboard(false);
-      })
-      .catch((e) => {
-        setPlayers([]);
-        setLeaderboardError(e instanceof Error ? e.message : "Failed to load leaderboard");
-        setLoadingLeaderboard(false);
-      });
-  };
-
   useEffect(() => {
     loadStats();
-    refreshLeaderboard();
   }, []);
 
   const openStats = () => {
@@ -197,8 +98,17 @@ export default function ClientHeader() {
   };
 
   const openLeaderboard = () => {
-    refreshLeaderboard();
+    const saved = getSavedName();
+    setHighlightKey(saved ? normalizeName(saved) : null);
+    setLeaderboardNotice(null);
+    void leaderboard.reload();
     setShowLeaderboard(true);
+  };
+
+  const changeName = () => {
+    clearSavedName();
+    setHighlightKey(null);
+    setLeaderboardNotice("Name cleared. You\u2019ll be asked for your name after your next game.");
   };
 
   const today = new Date();
@@ -223,7 +133,18 @@ export default function ClientHeader() {
         </div>
       </header>
       {showStats && <StatsModal stats={stats} onClose={() => setShowStats(false)} />}
-      {showLeaderboard && <LeaderboardModal players={players} onClose={() => setShowLeaderboard(false)} loading={loadingLeaderboard} error={leaderboardError} />}
+      {showLeaderboard && (
+        <LeaderboardView
+          players={leaderboard.players}
+          loading={leaderboard.loading}
+          error={leaderboard.error}
+          onRetry={() => void leaderboard.reload()}
+          highlightKey={highlightKey}
+          notice={leaderboardNotice}
+          onChangeName={highlightKey ? changeName : undefined}
+          onClose={() => setShowLeaderboard(false)}
+        />
+      )}
     </>
   );
 }

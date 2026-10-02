@@ -7,7 +7,7 @@ import LeaderboardModal from "@/components/LeaderboardModal";
 import { getDailyIndex, getDailySolution, isFiveLetters, normalizeGuess } from "@/lib/words";
 import { evaluateGuess, mergeKeyStates, type LetterState } from "@/lib/evaluateGuess";
 import { getDateKey, loadGame, loadStats, saveGame, saveStats, type Stats } from "@/lib/storage";
-import { LEADERBOARD_SUBMITTED_DATE_KEY } from "@/lib/leaderboardClient";
+import { getSubmittedDateKey } from "@/lib/leaderboardClient";
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
@@ -49,6 +49,7 @@ export default function Page() {
   const [status, setStatus] = useState<GameStatus>("ongoing");
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
+  const [submittedToday, setSubmittedToday] = useState<boolean>(false);
   const [stats, setStats] = useState<Stats>({
     gamesPlayed: 0,
     wins: 0,
@@ -103,18 +104,19 @@ export default function Page() {
     saveGame({ dateKey, solution, guesses, status });
   }, [dateKey, solution, guesses, status]);
 
-  // Auto-open leaderboard after game ends (once per day).
+  // Leaderboard: has today's result already been submitted from this device?
+  useEffect(() => {
+    setSubmittedToday(getSubmittedDateKey() === dateKey);
+  }, [dateKey]);
+
+  // Auto-open leaderboard after game ends (once per day). With a saved name the
+  // modal submits the result (win or loss) automatically; otherwise it asks for a name.
   useEffect(() => {
     if (!mounted) return;
     if (status !== "won" && status !== "lost") return;
-    try {
-      const already = window.localStorage.getItem(LEADERBOARD_SUBMITTED_DATE_KEY);
-      const persisted = loadGame();
-      if (!persisted || persisted.dateKey !== dateKey) return;
-      if (already === dateKey) return;
-    } catch {
-      // ignore
-    }
+    const persisted = loadGame();
+    if (!persisted || persisted.dateKey !== dateKey) return;
+    if (getSubmittedDateKey() === dateKey) return;
     setLeaderboardOpen(true);
   }, [status, mounted, dateKey]);
 
@@ -262,7 +264,9 @@ export default function Page() {
         {(status === "won" || status === "lost") && (
           <div className="actions">
             <button className="btn" onClick={share}>Share</button>
-            <button className="btn secondary" onClick={() => setLeaderboardOpen(true)}>Send to Leaderboard</button>
+            <button className="btn secondary" onClick={() => setLeaderboardOpen(true)}>
+              {submittedToday ? "View Leaderboard" : "Send to Leaderboard"}
+            </button>
           </div>
         )}
       </div>
@@ -275,13 +279,7 @@ export default function Page() {
       <LeaderboardModal
         open={leaderboardOpen && (status === "won" || status === "lost")}
         onClose={() => setLeaderboardOpen(false)}
-        onSubmitted={() => {
-          try {
-            window.localStorage.setItem(LEADERBOARD_SUBMITTED_DATE_KEY, dateKey);
-          } catch {
-            // ignore
-          }
-        }}
+        onSubmitted={() => setSubmittedToday(true)}
         dateKey={dateKey}
         result={leaderboardResult}
         guesses={leaderboardGuesses}
