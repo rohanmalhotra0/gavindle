@@ -104,4 +104,16 @@ export function isFiveLetters(input: string): boolean {
   return /^[a-z]{5}$/.test(input);
 }
 
-
+/**
+ * Picks a hint: one letter of the solution at a position the player has not
+ * yet turned green. Returns null when every position is already green.
+ */
+export function pickHint(solution: string, guesses: string[], rand: () => number = Math.random): { index: number; letter: string } | null {
+  const open: number[] = [];
+  for (let i = 0; i < solution.length; i++) {
+    if (!guesses.some((g) => g[i] === solution[i])) open.push(i);
+  }
+  if (open.length === 0) return null;
+  const index = open[Math.min(open.length - 1, Math.floor(rand() * open.length))];
+  return { index, letter: solution[index] };
+}

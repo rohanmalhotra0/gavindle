@@ -19,6 +19,8 @@ type Props = {
   shakeNonce?: number;
   // Milliseconds between each tile's flip
   revealStepMs?: number;
+  // Hint: a faint "ghost" letter shown in an empty tile of the row being typed
+  ghost?: { row: number; index: number; letter: string } | null;
 };
 
 const STATE_LABEL: Record<LetterState, string> = {
@@ -29,7 +31,7 @@ const STATE_LABEL: Record<LetterState, string> = {
 };
 
 export default function Grid(props: Props) {
-  const { rows, revealRow = null, winRow = null, shakeRow = null, shakeNonce = 0, revealStepMs = 0 } = props;
+  const { rows, revealRow = null, winRow = null, shakeRow = null, shakeNonce = 0, revealStepMs = 0, ghost = null } = props;
   return (
     <div className="board">
       <div className="grid" role="group" aria-label="Guess grid">
@@ -45,6 +47,7 @@ export default function Grid(props: Props) {
             >
               {row.letters.map((ch, c) => {
                 const state = row.states[c];
+                const isGhost = !ch && !row.submitted && ghost !== null && ghost.row === r && ghost.index === c;
                 const showState = row.submitted && state !== "empty";
                 const cls = [
                   "tile",
@@ -52,7 +55,8 @@ export default function Grid(props: Props) {
                   ch && !row.submitted ? "pop" : "",
                   showState ? state : "",
                   showState && revealing ? "reveal" : "",
-                  r === winRow ? "win" : ""
+                  r === winRow ? "win" : "",
+                  isGhost ? "ghost" : ""
                 ]
                   .filter(Boolean)
                   .join(" ");
@@ -63,10 +67,12 @@ export default function Grid(props: Props) {
                     : undefined;
                 const label = ch
                   ? `${ch}${showState && !revealing ? `, ${STATE_LABEL[state]}` : ""}`
-                  : "empty";
+                  : isGhost
+                    ? `empty, hint: ${(ghost?.letter ?? "").toUpperCase()}`
+                    : "empty";
                 return (
                   <div className={cls} key={c} style={style} role="img" aria-label={label}>
-                    {ch}
+                    {ch || (isGhost ? (ghost?.letter ?? "").toUpperCase() : "")}
                   </div>
                 );
               })}

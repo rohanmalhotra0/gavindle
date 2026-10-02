@@ -3,6 +3,14 @@ export type PersistedGame = {
   solution: string;
   guesses: string[];
   status: "ongoing" | "won" | "lost";
+  // Optional (added later): today's hint. Older saves without these still load.
+  hintUsed?: boolean;
+  hint?: GameHint;
+};
+
+export type GameHint = {
+  index: number; // 0-based letter position
+  letter: string; // lowercase a-z
 };
 
 export type Stats = {
@@ -33,6 +41,23 @@ export function getDateKey(d: Date = new Date()): string {
   const month = parts.find(p => p.type === "month")?.value ?? "";
   const day = parts.find(p => p.type === "day")?.value ?? "";
   return `${year}-${month}-${day}`;
+}
+
+// Milliseconds until the next puzzle (midnight, America/New_York) from `now`.
+// Uses New York wall-clock time, so it stays right across DST changes (which
+// happen at 2am, never between now and the coming midnight once past 2am).
+export function msUntilNextPuzzle(now: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).formatToParts(now);
+  const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? "0", 10) || 0;
+  const h = get("hour") % 24;
+  const elapsed = ((h * 60 + get("minute")) * 60 + get("second")) * 1000 + now.getMilliseconds();
+  return Math.max(0, 24 * 60 * 60 * 1000 - elapsed);
 }
 
 // Returns the dateKey of the calendar day before `dateKey` (both YYYY-MM-DD).
@@ -84,7 +109,24 @@ export function loadGame(): PersistedGame | null {
     if (typeof g.dateKey !== "string" || typeof g.solution !== "string") return null;
     if (!Array.isArray(g.guesses) || !g.guesses.every((x) => typeof x === "string")) return null;
     const status = g.status === "won" || g.status === "lost" ? g.status : "ongoing";
-    return { dateKey: g.dateKey, solution: g.solution, guesses: g.guesses, status };
+    const game: PersistedGame = { dateKey: g.dateKey, solution: g.solution, guesses: g.guesses, status };
+    const h = g.hint as Partial<GameHint> | undefined;
+    if (
+      h &&
+      typeof h === "object" &&
+      typeof h.index === "number" &&
+      Number.isInteger(h.index) &&
+      h.index >= 0 &&
+      h.index < 5 &&
+      typeof h.letter === "string" &&
+      /^[a-z]$/.test(h.letter)
+    ) {
+      game.hint = { index: h.index, letter: h.letter };
+      game.hintUsed = true;
+    } else if (g.hintUsed === true) {
+      game.hintUsed = true;
+    }
+    return game;
   } catch {
     return null;
   }

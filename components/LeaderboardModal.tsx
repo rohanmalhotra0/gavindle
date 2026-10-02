@@ -31,6 +31,7 @@ export default function LeaderboardModal(props: {
   dateKey: string;
   result: GameResult;
   guesses: number | null;
+  hintUsed?: boolean;
 }) {
   const { open, dateKey, result, guesses } = props;
   const [view, setView] = useState<View>("prompt");
